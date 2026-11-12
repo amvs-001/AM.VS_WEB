@@ -4,7 +4,7 @@ create table if not exists profiles (
   id uuid primary key default gen_random_uuid(),
   nombre text not null,
   correo text unique not null,
-  rol text not null default 'Administrador' check (rol in ('Superadministrador', 'Administrador', 'Editor')),
+  rol text not null default 'Usuario' check (rol in ('Usuario', 'Superadministrador', 'Administrador', 'Editor')),
   activo boolean not null default true,
   created_at timestamptz not null default now()
 );

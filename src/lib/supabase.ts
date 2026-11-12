@@ -17,6 +17,7 @@ import type {
   NewsItem,
   RepertoireItem,
   SiteSettings,
+  SocialLink,
   SponsorItem,
   TimelineItem,
 } from '../types';
@@ -43,6 +44,14 @@ function boolean(row: Record<string, unknown>, ...keys: string[]): boolean {
     if (typeof row[key] === 'boolean') return row[key];
   }
   return false;
+}
+
+function isSocialLink(value: unknown): value is SocialLink {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.label === 'string'
+    && typeof row.url === 'string'
+    && /^https?:\/\//i.test(row.url);
 }
 
 function eventType(value: string): EventItem['type'] {
@@ -77,6 +86,7 @@ function mapNews(row: Record<string, unknown>): NewsItem {
     summary: text(row, 'resumen', 'summary'),
     date: text(row, 'fecha_publicacion', 'fecha_publicación', 'date'),
     status: 'publicada',
+    image: text(row, 'imagen', 'image') || undefined,
   };
 }
 
@@ -175,7 +185,11 @@ export async function fetchPublicData() {
     settingsResponse,
   ] = await Promise.all([
     supabase.from('events').select('*').order('fecha', { ascending: true }),
-    supabase.from('news').select('*').eq('estado', 'publicada').order('fecha_publicacion', { ascending: false }),
+    supabase.from('news')
+      .select('*')
+      .eq('estado', 'publicada')
+      .or(`programada_para.is.null,programada_para.lte.${new Date().toISOString()}`)
+      .order('fecha_publicacion', { ascending: false }),
     supabase.from('repertoire').select('*').order('titulo', { ascending: true }),
     supabase.from('gallery_albums').select('*').order('fecha', { ascending: false }),
     supabase.from('members').select('*').eq('visible', true).order('orden', { ascending: true }),
@@ -201,8 +215,24 @@ export async function fetchPublicData() {
 
   const settingRows = (settingsResponse.data ?? []) as Array<Record<string, unknown>>;
   const settings = new Map(settingRows.map((row) => [text(row, 'clave'), text(row, 'valor')]));
+  const foundationYear = Number(settings.get('site_foundation_year'));
+  let publicSocialLinks = socialLinks;
+  const rawSocialLinks = settings.get('site_social_links');
+  if (rawSocialLinks) {
+    try {
+      const parsed: unknown = JSON.parse(rawSocialLinks);
+      if (Array.isArray(parsed) && parsed.every(isSocialLink)) {
+        publicSocialLinks = parsed;
+      }
+    } catch {
+      publicSocialLinks = socialLinks;
+    }
+  }
   const siteSettings: SiteSettings = {
     ...fallbackSettings,
+    foundationYear: Number.isInteger(foundationYear) && foundationYear > 0
+      ? foundationYear
+      : fallbackSettings.foundationYear,
     name: settings.get('site_name') || fallbackSettings.name,
     siglas: settings.get('site_siglas') || fallbackSettings.siglas,
     currentDirector: settings.get('site_director') || fallbackSettings.currentDirector,
@@ -210,12 +240,15 @@ export async function fetchPublicData() {
     publicPhone: settings.get('site_phone') || fallbackSettings.publicPhone,
     rehearsalAddress: settings.get('site_rehearsal_address') || fallbackSettings.rehearsalAddress,
     values: settings.get('site_values')?.split(';').filter(Boolean) || fallbackSettings.values,
+    homeIntro: settings.get('site_home_intro') || fallbackSettings.homeIntro,
+    history: settings.get('site_history') || fallbackSettings.history,
+    logoUrl: settings.get('site_logo_url') || fallbackSettings.logoUrl,
   };
 
   return {
     source: 'supabase' as const,
     siteSettings,
-    socialLinks,
+    socialLinks: publicSocialLinks,
     events: ((eventsResponse.data ?? []) as Array<Record<string, unknown>>).map(mapEvent),
     news: ((newsResponse.data ?? []) as Array<Record<string, unknown>>).map(mapNews),
     repertoire: ((repertoireResponse.data ?? []) as Array<Record<string, unknown>>).map(mapRepertoire),

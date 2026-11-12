@@ -13,6 +13,9 @@ export type SiteSettings = {
   rehearsalAddress: string;
   publicPhone: string;
   isIndependent: boolean;
+  homeIntro: string;
+  history: string;
+  logoUrl?: string;
 };
 
 export type EventStatus = 'celebrada' | 'proxima' | 'cancelada';
@@ -43,6 +46,7 @@ export type NewsItem = {
   summary: string;
   date: string;
   status: 'borrador' | 'publicada';
+  image?: string;
 };
 
 export type GalleryAlbum = {

@@ -10,6 +10,8 @@ export const siteSettings: SiteSettings = {
   rehearsalAddress: 'Cerca de C. el Jardinito, 13, 14860 Doña Mencía, Córdoba',
   publicPhone: '+34 699 14 26 01',
   isIndependent: true,
+  homeIntro: 'Tradición, juventud y devoción para la música cofrade de la localidad. La AM VS conserva la esencia de la Semana Santa en Doña Mencía.',
+  history: '',
 };
 
 export const socialLinks: SocialLink[] = [

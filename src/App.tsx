@@ -1,7 +1,8 @@
 import { createContext, FormEvent, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { adminUsers, events, galleryAlbums, historyText, members, news, repertoire, siteSettings, socialLinks, sponsors, timeline } from './data/siteData';
-import { fetchPublicData, isSupabaseConfigured, type PublicData } from './lib/supabase';
+import { events, galleryAlbums, historyText, members, news, repertoire, siteSettings, socialLinks, sponsors, timeline } from './data/siteData';
+import { fetchPublicData, isSupabaseConfigured, supabase, type PublicData } from './lib/supabase';
+import AdminContentEditor from './components/AdminContentEditor';
 
 const initialPublicData: PublicData = {
   source: 'local',
@@ -31,7 +32,7 @@ const navItems = [
   { to: '/componentes', label: 'Componentes' },
   { to: '/patrocinadores', label: 'Patrocinadores' },
   { to: '/contacto', label: 'Contacto' },
-  { to: '/admin', label: 'Admin' },
+  { to: '/admin', label: 'Acceso' },
 ];
 
 function App() {
@@ -62,13 +63,26 @@ function App() {
     };
   }, []);
 
+  const refreshPublicData = () => {
+    void fetchPublicData()
+      .then((data) => {
+        setPublicData(data);
+        setConnectionError('');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      })
+      .catch((error: unknown) => {
+        console.error('No se pudieron actualizar los datos públicos:', error);
+        setConnectionError(error instanceof Error ? error.message : 'Error desconocido al actualizar los datos.');
+      });
+  };
+
   return (
     <PublicDataContext.Provider value={publicData}>
     <div className="app-shell">
       <header className="site-header">
         <div className="container header-inner">
           <Link to="/" className="brand" aria-label="Inicio de la Agrupación Musical Virgen de la Soledad">
-            <img src="/escudoAM.png" alt="Escudo de la Agrupación Musical Virgen de la Soledad" className="brand-logo" />
+            <img src={publicData.siteSettings.logoUrl || '/escudoAM.png'} alt="Escudo de la Agrupación Musical Virgen de la Soledad" className="brand-logo" />
             <div>
               <span className="brand-name">AM VS</span>
               <small>{publicData.siteSettings.name}</small>
@@ -112,7 +126,8 @@ function App() {
           <Route path="/componentes" element={<MembersPage />} />
           <Route path="/patrocinadores" element={<SponsorsPage />} />
           <Route path="/contacto" element={<ContactPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin" element={<AdminPage onPublished={refreshPublicData} />} />
+          <Route path="/registro" element={<SignupPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
@@ -149,11 +164,12 @@ function App() {
 }
 
 function HomePage() {
-  const { siteSettings: settings, news: publishedNews } = usePublicData();
+  const { siteSettings: settings, news: publishedNews, events: publishedEvents } = usePublicData();
+  const featuredEvent = publishedEvents[0];
   const facts = [
     { label: 'Año de fundación', value: String(settings.foundationYear) },
     { label: 'Director actual', value: settings.currentDirector },
-    { label: 'Localidad', value: 'Doña Mencía' },
+    { label: 'Localidad', value: settings.locality },
     { label: 'Valores', value: settings.values.join(', ') },
   ];
 
@@ -163,9 +179,9 @@ function HomePage() {
         <div className="container hero-grid">
           <div className="hero-copy">
             <span className="eyebrow">Agrupación Musical</span>
-            <h1>Virgen de la Soledad de Doña Mencía</h1>
+            <h1>{settings.name}</h1>
             <p>
-              Tradición, juventud y devoción para la música cofrade de la localidad. La AM VS conserva la esencia de la Semana Santa en Doña Mencía.
+              {settings.homeIntro}
             </p>
             <div className="hero-actions">
               <Link to="/historia" className="button primary">
@@ -177,7 +193,7 @@ function HomePage() {
             </div>
           </div>
           <div className="hero-panel">
-            <img src="/escudoAM.png" alt="Escudo de la Agrupación Musical Virgen de la Soledad" />
+            <img src={settings.logoUrl || '/escudoAM.png'} alt="Escudo de la Agrupación Musical Virgen de la Soledad" />
           </div>
         </div>
       </section>
@@ -222,19 +238,21 @@ function HomePage() {
           <div className="section-heading split">
             <div>
               <span className="eyebrow">Actuación habitual</span>
-              <h2>Sábado de Gloria</h2>
+              <h2>{featuredEvent?.title ?? 'Próximas actuaciones'}</h2>
             </div>
             <Link to="/actuaciones" className="button secondary text-button">
               Ver todas las actuaciones
             </Link>
           </div>
-          <div className="feature-banner">
-            <div>
-              <h3>Actuación habitual en Doña Mencía</h3>
-              <p>La agrupación mantiene como cita tradicional la participación en el Sábado de Gloria en Doña Mencía, con su presencia en la localidad y sus actos cofrades.</p>
+          {featuredEvent ? (
+            <div className="feature-banner">
+              <div>
+                <h3>{featuredEvent.title}</h3>
+                <p>{featuredEvent.description}</p>
+              </div>
+              <span className={`badge ${featuredEvent.status}`}>{featuredEvent.status}</span>
             </div>
-            <span className="badge success">Celebrada</span>
-          </div>
+          ) : <div className="empty-state"><p>No hay actuaciones publicadas por el momento.</p></div>}
         </div>
       </section>
 
@@ -253,6 +271,11 @@ function HomePage() {
               {publishedNews.slice(0, 3).map((item) => (
                 <article key={item.id} className="feature-card">
                   <span className="card-tag">{item.category}</span>
+                  {item.image
+                    ? /\.(mp4|webm)(?:\?|$)/i.test(item.image)
+                      ? <video className="news-card-image" controls src={item.image}>Tu navegador no puede reproducir este vídeo.</video>
+                      : <img className="news-card-image" src={item.image} alt="" />
+                    : null}
                   <h3>{item.title}</h3>
                   <p>{item.summary}</p>
                 </article>
@@ -266,13 +289,13 @@ function HomePage() {
 }
 
 function HistoryPage() {
-  const { timeline: historyTimeline } = usePublicData();
+  const { timeline: historyTimeline, siteSettings: settings } = usePublicData();
 
   return (
     <div className="container section-page">
       <PageHeader title="Historia" subtitle="Trayectoria y evolución de la Agrupación Musical Virgen de la Soledad" />
       <div className="story-block">
-        <p>{historyText}</p>
+        <p>{settings.history || historyText}</p>
       </div>
       <div className="timeline">
         {historyTimeline.map((item) => (
@@ -544,42 +567,144 @@ function ContactPage() {
   );
 }
 
-function AdminPage() {
+function AdminPage({ onPublished }: { onPublished: () => void }) {
   const publicData = usePublicData();
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('amvs-demo-auth') === 'true');
+  const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<Awaited<ReturnType<NonNullable<typeof supabase>['auth']['getSession']>>['data']['session']>(null);
+  const [profile, setProfile] = useState<{ rol: string; activo: boolean } | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = (event: FormEvent) => {
-    event.preventDefault();
-    if (credentials.email.includes('@') && credentials.password.length >= 6) {
-      localStorage.setItem('amvs-demo-auth', 'true');
-      setIsAuthenticated(true);
-      setError('');
+  useEffect(() => {
+    if (!supabase) {
+      setIsLoading(false);
       return;
     }
-    setError('Credenciales de demostración no válidas. Usa un correo válido y una contraseña de 6 o más caracteres.');
+
+    let isMounted = true;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setError('');
+    });
+
+    supabase.auth.getSession().then(({ data, error: sessionError }) => {
+      if (!isMounted) return;
+      if (sessionError) setError(sessionError.message);
+      setSession(data.session);
+      setIsLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || !session) {
+      setProfile(null);
+      setIsProfileLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsProfileLoading(true);
+    supabase.from('profiles').select('rol, activo').eq('id', session.user.id).maybeSingle()
+      .then(({ data, error: profileError }) => {
+        if (!isMounted) return;
+        if (profileError) {
+          setError(`No se pudo verificar el perfil: ${profileError.message}`);
+          setProfile(null);
+        } else {
+          setProfile(data);
+        }
+        setIsProfileLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session]);
+
+  const handleLogin = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!supabase) return;
+    setIsSubmitting(true);
+    setError('');
+    const { error: loginError } = await supabase.auth.signInWithPassword(credentials);
+    if (loginError) {
+      setError(loginError.message);
+    }
+    setIsSubmitting(false);
   };
 
-  if (!isAuthenticated) {
+  const handleGoogleLogin = async () => {
+    if (!supabase) return;
+    setIsSubmitting(true);
+    setError('');
+    const { error: loginError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/admin` },
+    });
+    if (loginError) {
+      setError(loginError.message);
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isSupabaseConfigured) {
     return (
       <div className="container section-page admin-login">
         <div className="login-card">
           <h2>Acceso privado</h2>
-          <p>El panel administrativo está preparado para Supabase Auth. Esta vista es una demo local para comprobar el flujo del panel.</p>
+          <p>Configura las variables públicas de Supabase para iniciar sesión. No hay acceso de demostración local.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading || (session && isProfileLoading)) {
+    return <div className="container section-page"><p role="status">Verificando sesión y permisos…</p></div>;
+  }
+
+  if (!session) {
+    return (
+      <div className="container section-page admin-login">
+        <div className="login-card">
+          <h2>Acceso privado</h2>
+          <p>Inicia sesión con una cuenta autorizada para acceder al panel.</p>
           <form onSubmit={handleLogin}>
             <label>
               Correo electrónico
-              <input type="email" value={credentials.email} onChange={(event) => setCredentials((current) => ({ ...current, email: event.target.value }))} />
+              <input type="email" autoComplete="email" required value={credentials.email} onChange={(event) => setCredentials((current) => ({ ...current, email: event.target.value }))} />
             </label>
             <label>
               Contraseña
-              <input type="password" value={credentials.password} onChange={(event) => setCredentials((current) => ({ ...current, password: event.target.value }))} />
+              <input type="password" autoComplete="current-password" required value={credentials.password} onChange={(event) => setCredentials((current) => ({ ...current, password: event.target.value }))} />
             </label>
             {error ? <small className="error-text">{error}</small> : null}
-            <button type="submit" className="button primary">Entrar al panel</button>
+            <button type="submit" className="button primary" disabled={isSubmitting}>{isSubmitting ? 'Entrando…' : 'Entrar al panel'}</button>
           </form>
-          <p className="helper-text">{isSupabaseConfigured ? 'Supabase detectado.' : 'Sin credenciales de Supabase configuradas: el panel funciona en modo de demostración local.'}</p>
+          <button type="button" className="button secondary auth-provider-button" onClick={handleGoogleLogin} disabled={isSubmitting}>Continuar con Google</button>
+          <p className="helper-text">¿Aún no tienes cuenta? <Link to="/registro">Crear cuenta</Link></p>
+        </div>
+      </div>
+    );
+  }
+
+  const hasAdminAccess = profile?.activo === true
+    && ['Superadministrador', 'Administrador', 'Editor'].includes(profile.rol);
+
+  if (!hasAdminAccess) {
+    return (
+      <div className="container section-page admin-login">
+        <div className="login-card">
+          <h2>Sin permisos de administración</h2>
+          <p>La cuenta <strong>{session.user.email}</strong> no tiene un rol interno autorizado. El registro público nunca concede estos permisos.</p>
+          {error ? <p className="error-text">{error}</p> : null}
+          <button type="button" className="button secondary" onClick={() => { void supabase?.auth.signOut(); }}>Cerrar sesión</button>
         </div>
       </div>
     );
@@ -587,7 +712,7 @@ function AdminPage() {
 
   return (
     <div className="container section-page admin-panel">
-      <PageHeader title="Panel de administración" subtitle="Gestión privada de la web AM VS" />
+      <PageHeader title="Panel de administración" subtitle={`Sesión de ${session.user.email} · ${profile.rol}`} />
       <div className="admin-summary">
         <div className="summary-card">
           <span>Noticias</span>
@@ -602,43 +727,131 @@ function AdminPage() {
           <strong>{publicData.repertoire.length}</strong>
         </div>
         <div className="summary-card">
-          <span>Usuarios previstos</span>
-          <strong>{adminUsers.length}</strong>
+          <span>Tu rol interno</span>
+          <strong>{profile.rol}</strong>
         </div>
       </div>
 
-      <div className="admin-grid">
-        <article className="admin-card">
-          <h3>Gestión de contenidos</h3>
-          <ul>
-            <li>Noticias</li>
-            <li>Actuaciones</li>
-            <li>Repertorio</li>
-            <li>Galería</li>
-            <li>Componentes</li>
-            <li>Patrocinadores</li>
-          </ul>
-        </article>
-        <article className="admin-card">
-          <h3>Permisos</h3>
-          <ul>
-            {adminUsers.map((user) => (
-              <li key={user.name}>{user.name}: {user.role}</li>
-            ))}
-          </ul>
-        </article>
-        <article className="admin-card">
-          <h3>Estado operativo</h3>
-          <ul>
-            <li>Supabase: {isSupabaseConfigured ? 'Configurado' : 'Pendiente de configuración'}</li>
-            <li>RLS: Preparado en SQL</li>
-            <li>Storage: Preparado en buckets</li>
-          </ul>
-        </article>
-      </div>
+      <AdminContentEditor
+        userId={session.user.id}
+        role={profile.rol}
+        onPublished={onPublished}
+      />
 
       <div className="admin-actions">
-        <button type="button" className="button secondary" onClick={() => { localStorage.removeItem('amvs-demo-auth'); setIsAuthenticated(false); }}>Cerrar sesión</button>
+        <button type="button" className="button secondary" onClick={() => { void supabase?.auth.signOut(); }}>Cerrar sesión</button>
+      </div>
+    </div>
+  );
+}
+
+function SignupPage() {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    surname: '',
+    phone: '',
+    nickname: '',
+    bandRole: '',
+    email: '',
+    password: '',
+    passwordConfirmation: '',
+  });
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const updateField = (field: keyof typeof formData, value: string) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleSignup = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setMessage('');
+    if (!supabase) {
+      setError('Supabase no está configurado.');
+      return;
+    }
+    if (formData.password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    if (formData.password !== formData.passwordConfirmation) {
+      setError('Las contraseñas no coinciden.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const { data, error: signupError } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/admin`,
+        data: {
+          first_name: formData.firstName.trim(),
+          surname: formData.surname.trim(),
+          phone: formData.phone.trim(),
+          nickname: formData.nickname.trim(),
+          band_role: formData.bandRole.trim(),
+        },
+      },
+    });
+    if (signupError) {
+      setError(signupError.message);
+    } else if (data.session) {
+      setMessage('Cuenta creada. Tu acceso al panel requiere que un administrador asigne un rol interno.');
+    } else {
+      setMessage('Cuenta creada. Revisa tu correo y confirma la dirección para completar el registro.');
+    }
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className="container section-page admin-login signup-page">
+      <div className="login-card">
+        <h2>Crear cuenta</h2>
+        <p>El registro crea una cuenta estándar. Los permisos de administración se asignan por separado.</p>
+        {!isSupabaseConfigured ? <p className="error-text">Supabase no está configurado. No se puede crear la cuenta.</p> : null}
+        <form onSubmit={handleSignup}>
+          <div className="field-grid">
+            <label>
+              Nombre
+              <input autoComplete="given-name" required value={formData.firstName} onChange={(event) => updateField('firstName', event.target.value)} />
+            </label>
+            <label>
+              Apellidos
+              <input autoComplete="family-name" required value={formData.surname} onChange={(event) => updateField('surname', event.target.value)} />
+            </label>
+            <label>
+              Teléfono
+              <input type="tel" autoComplete="tel" required value={formData.phone} onChange={(event) => updateField('phone', event.target.value)} />
+            </label>
+            <label>
+              Apodo
+              <input required value={formData.nickname} onChange={(event) => updateField('nickname', event.target.value)} />
+            </label>
+            <label className="full-width">
+              Cargo o papel en la banda
+              <input required value={formData.bandRole} onChange={(event) => updateField('bandRole', event.target.value)} />
+            </label>
+            <label className="full-width">
+              Correo electrónico
+              <input type="email" autoComplete="email" required value={formData.email} onChange={(event) => updateField('email', event.target.value)} />
+            </label>
+            <label>
+              Contraseña
+              <input type="password" autoComplete="new-password" minLength={8} required value={formData.password} onChange={(event) => updateField('password', event.target.value)} />
+            </label>
+            <label>
+              Confirmar contraseña
+              <input type="password" autoComplete="new-password" minLength={8} required value={formData.passwordConfirmation} onChange={(event) => updateField('passwordConfirmation', event.target.value)} />
+            </label>
+          </div>
+          {error ? <p className="error-text" role="alert">{error}</p> : null}
+          {message ? <p className="success-message" role="status">{message}</p> : null}
+          <button type="submit" className="button primary" disabled={isSubmitting || !isSupabaseConfigured}>{isSubmitting ? 'Creando cuenta…' : 'Registrarme'}</button>
+        </form>
+        <p className="helper-text">¿Ya tienes cuenta? <Link to="/admin">Inicia sesión</Link></p>
       </div>
     </div>
   );
