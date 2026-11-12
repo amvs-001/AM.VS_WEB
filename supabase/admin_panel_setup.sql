@@ -141,7 +141,15 @@ begin
     'Usuario',
     true
   )
-  on conflict (id) do nothing;
+  on conflict (correo) do update
+    set id = excluded.id,
+        nombre = excluded.nombre,
+        apellidos = excluded.apellidos,
+        telefono = excluded.telefono,
+        apodo = excluded.apodo,
+        rol_banda = excluded.rol_banda,
+        rol = 'Usuario',
+        activo = true;
   return new;
 end;
 $$;

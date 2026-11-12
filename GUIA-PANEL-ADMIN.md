@@ -60,7 +60,7 @@ El panel necesita una tabla privada de borradores, la columna para programar not
 4. Asigna el rol interno siguiendo la sección siguiente. No se asigna privilegio administrativo por registrarse o usar Google.
 5. No publiques una clave `service_role` en la web ni en `.env`; el panel usa la clave pública y Supabase RLS para autorizar cambios.
 
-La migración activa RLS, añade políticas de lectura pública para el contenido visible, permite escrituras sólo a perfiles internos activos, protege los borradores por usuario y configura el bucket público `site-media` con subida reservada a esos perfiles. También cambia la lectura pública de noticias para ocultar borradores y noticias cuya fecha programada todavía no ha llegado. Crea perfiles básicos automáticamente para usuarios nuevos con rol `Usuario`, nunca administrador; si el usuario ya existía, el bloque de asignación de rol de abajo crea el perfil. La migración se puede ejecutar otra vez sin duplicar políticas ni el bucket.
+La migración activa RLS, añade políticas de lectura pública para el contenido visible, permite escrituras sólo a perfiles internos activos, protege los borradores por usuario y configura el bucket público `site-media` con subida reservada a esos perfiles. También cambia la lectura pública de noticias para ocultar borradores y noticias cuya fecha programada todavía no ha llegado. Crea perfiles básicos automáticamente para usuarios nuevos con rol `Usuario`, nunca administrador; si ya existía un perfil con ese correo, lo vincula al UUID autenticado y quita el rol interno, que debe volver a asignarse explícitamente. La migración se puede ejecutar otra vez sin duplicar políticas ni el bucket.
 
 ## 4. Asignar el primer administrador de Google
 
@@ -126,7 +126,7 @@ Las noticias programadas quedan guardadas con estado publicado, pero las políti
 ## 6. Pruebas que debes hacer
 
 1. Cierra sesión, entra en `/admin` y pulsa **Continuar con Google** con el correo administrador.
-2. Confirma que vuelve a `/admin` y aparece el panel. Si ves “Sin permisos”, revisa el correo y el perfil con la consulta anterior.
+2. Confirma que vuelve a `/admin` y aparece el panel. Una cuenta sin rol interno se desconecta y vuelve a Inicio; si una consulta de Supabase falla, se muestra un error en vez de conceder acceso.
 3. Abre otra sesión privada del navegador con una cuenta Google distinta; inicia sesión en `/admin`. Debe salir “Sin permisos de administración”, no el editor.
 4. Guarda una noticia como borrador; comprueba que no aparece en Inicio ni en los resultados públicos de `news`.
 5. Abre el borrador, usa Vista previa, publícalo y confirma que aparece en Inicio tras recargar.

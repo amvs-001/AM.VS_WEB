@@ -1,5 +1,5 @@
 import { createContext, FormEvent, useContext, useEffect, useMemo, useState } from 'react';
-import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { events, galleryAlbums, historyText, members, news, repertoire, siteSettings, socialLinks, sponsors, timeline } from './data/siteData';
 import { fetchPublicData, isSupabaseConfigured, supabase, type PublicData } from './lib/supabase';
 import AdminContentEditor from './components/AdminContentEditor';
@@ -568,6 +568,7 @@ function ContactPage() {
 }
 
 function AdminPage({ onPublished }: { onPublished: () => void }) {
+  const navigate = useNavigate();
   const publicData = usePublicData();
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -610,23 +611,36 @@ function AdminPage({ onPublished }: { onPublished: () => void }) {
     }
 
     let isMounted = true;
+    const authClient = supabase;
     setIsProfileLoading(true);
-    supabase.from('profiles').select('rol, activo').eq('id', session.user.id).maybeSingle()
-      .then(({ data, error: profileError }) => {
+    authClient.from('profiles').select('rol, activo').eq('id', session.user.id).maybeSingle()
+      .then(async ({ data, error: profileError }) => {
         if (!isMounted) return;
         if (profileError) {
           setError(`No se pudo verificar el perfil: ${profileError.message}`);
           setProfile(null);
+          setIsProfileLoading(false);
+          return;
         } else {
           setProfile(data);
         }
         setIsProfileLoading(false);
+        const hasAdminRole = data?.activo === true
+          && ['Superadministrador', 'Administrador', 'Editor'].includes(data.rol);
+        if (!hasAdminRole) {
+          const { error: signOutError } = await authClient.auth.signOut();
+          if (signOutError && isMounted) {
+            setError(`No se pudo cerrar la sesión sin permisos: ${signOutError.message}`);
+            return;
+          }
+          if (isMounted) navigate('/', { replace: true });
+        }
       });
 
     return () => {
       isMounted = false;
     };
-  }, [session]);
+  }, [session, navigate]);
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -697,18 +711,21 @@ function AdminPage({ onPublished }: { onPublished: () => void }) {
   const hasAdminAccess = profile?.activo === true
     && ['Superadministrador', 'Administrador', 'Editor'].includes(profile.rol);
 
-  if (!hasAdminAccess) {
+  if (!hasAdminAccess && error) {
     return (
       <div className="container section-page admin-login">
         <div className="login-card">
-          <h2>Sin permisos de administración</h2>
-          <p>La cuenta <strong>{session.user.email}</strong> no tiene un rol interno autorizado. El registro público nunca concede estos permisos.</p>
-          {error ? <p className="error-text">{error}</p> : null}
-          <button type="button" className="button secondary" onClick={() => { void supabase?.auth.signOut(); }}>Cerrar sesión</button>
+          <h2>No se pudieron comprobar los permisos</h2>
+          <p className="error-text" role="alert">{error}</p>
+          <button type="button" className="button secondary" onClick={() => { void supabase?.auth.signOut(); navigate('/', { replace: true }); }}>
+            Volver al inicio
+          </button>
         </div>
       </div>
     );
   }
+
+  if (!hasAdminAccess) return <div className="container section-page"><p role="status">Volviendo al inicio…</p></div>;
 
   return (
     <div className="container section-page admin-panel">
