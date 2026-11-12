@@ -337,6 +337,9 @@ function App() {
             </ul>
           </div>
         </div>
+        <div className="container footer-bottom">
+          <p>© 2026 AM Virgen de la Soledad · Desarrollado por Francis Cobo</p>
+        </div>
       </footer>
     </div>
     </PublicDataContext.Provider>
