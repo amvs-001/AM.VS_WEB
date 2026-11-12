@@ -37,6 +37,89 @@ function repertoirePath(item: { title: string }): string {
   return `/repertorio/${repertoireSlug(item.title)}`;
 }
 
+function RouteMetadata() {
+  const { pathname } = useLocation();
+  const { repertoire: repertoireItems, siteSettings } = usePublicData();
+
+  useEffect(() => {
+    const repertoireItem = repertoireItems.find((item) => repertoirePath(item) === pathname);
+    const pages: Record<string, { title: string; description: string }> = {
+      '/': {
+        title: 'AM Virgen de la Soledad de Doña Mencía | Web oficial',
+        description: 'Web oficial de la AM Virgen de la Soledad de Doña Mencía: marchas cofrades, vídeos, repertorio, historia y actuaciones.',
+      },
+      '/historia': {
+        title: 'Historia | AM Virgen de la Soledad de Doña Mencía',
+        description: 'Conoce la historia y trayectoria de la Agrupación Musical Virgen de la Soledad de Doña Mencía desde sus inicios.',
+      },
+      '/repertorio': {
+        title: 'Repertorio y marchas cofrades | AM Virgen de la Soledad',
+        description: 'Escucha y descubre las marchas cofrades de la Agrupación Musical Virgen de la Soledad de Doña Mencía.',
+      },
+      '/actuaciones': {
+        title: 'Actuaciones | AM Virgen de la Soledad de Doña Mencía',
+        description: 'Próximas actuaciones y eventos de la Agrupación Musical Virgen de la Soledad de Doña Mencía.',
+      },
+      '/galeria': {
+        title: 'Galería | AM Virgen de la Soledad de Doña Mencía',
+        description: 'Fotografías, vídeos y recuerdos de la Agrupación Musical Virgen de la Soledad de Doña Mencía.',
+      },
+      '/componentes': {
+        title: 'Componentes | AM Virgen de la Soledad de Doña Mencía',
+        description: 'Conoce a los componentes de la Agrupación Musical Virgen de la Soledad de Doña Mencía.',
+      },
+      '/patrocinadores': {
+        title: 'Patrocinadores | AM Virgen de la Soledad',
+        description: 'Colaboradores y patrocinadores de la Agrupación Musical Virgen de la Soledad de Doña Mencía.',
+      },
+      '/contacto': {
+        title: 'Contacto y contratación | AM Virgen de la Soledad',
+        description: 'Contacta con la Agrupación Musical Virgen de la Soledad de Doña Mencía para solicitar información o contratación.',
+      },
+    };
+    const page = repertoireItem
+      ? {
+          title: `${repertoireItem.title} | Marcha cofrade | AM Virgen de la Soledad`,
+          description: repertoireItem.description
+            || `Escucha ${repertoireItem.title}, marcha del repertorio de la Agrupación Musical Virgen de la Soledad de Doña Mencía.`,
+        }
+      : pages[pathname] ?? {
+          title: `${siteSettings.siglas} | ${siteSettings.name}`,
+          description: `Web oficial de ${siteSettings.name}, agrupación musical de Doña Mencía.`,
+        };
+    const canonicalUrl = `https://am-vs-web.pages.dev${pathname}`;
+    document.title = page.title;
+
+    const updateMeta = (attribute: string, key: string, content: string) => {
+      let element = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute(attribute, key);
+        document.head.appendChild(element);
+      }
+      element.content = content;
+    };
+
+    updateMeta('name', 'description', page.description);
+    updateMeta('property', 'og:title', page.title);
+    updateMeta('property', 'og:description', page.description);
+    updateMeta('property', 'og:url', canonicalUrl);
+    updateMeta('name', 'twitter:title', page.title);
+    updateMeta('name', 'twitter:description', page.description);
+    updateMeta('name', 'robots', pathname === '/admin' || pathname === '/registro' ? 'noindex, nofollow' : 'index, follow');
+
+    let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    canonical.href = canonicalUrl;
+  }, [pathname, repertoireItems, siteSettings.name, siteSettings.siglas]);
+
+  return null;
+}
+
 function SocialIcon({ label }: { label: string }) {
   const name = label.toLowerCase();
   if (name.includes('instagram')) {
@@ -173,6 +256,7 @@ function App() {
   return (
     <PublicDataContext.Provider value={publicData}>
     <TabPositionRestoration />
+    <RouteMetadata />
     <div className="app-shell">
       <header className="site-header">
         <div className="container header-inner">

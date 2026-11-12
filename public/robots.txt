@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /registro
 
-Sitemap: /sitemap.xml
+Sitemap: https://am-vs-web.pages.dev/sitemap.xml

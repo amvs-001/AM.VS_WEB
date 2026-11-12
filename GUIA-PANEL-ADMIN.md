@@ -156,3 +156,16 @@ Las noticias programadas quedan guardadas con estado publicado, pero las políti
 - Antes de publicar contenido personal (por ejemplo, nombres o fotografías de componentes), confirma que se dispone de autorización.
 - El horario de una publicación programada se interpreta en la zona horaria local del navegador desde el que se crea.
 - Cambiar la imagen del escudo actualiza la URL en Supabase; el archivo viejo no se elimina automáticamente del bucket.
+
+## 8. Aparecer en Google y Bing
+
+El sitio incluye metadatos de búsqueda, datos estructurados de la agrupación, `robots.txt` y un sitemap. Para solicitar que los buscadores lo rastreen:
+
+1. Comprueba que Cloudflare haya publicado la última versión y que `https://am-vs-web.pages.dev/robots.txt` y `https://am-vs-web.pages.dev/sitemap.xml` abran correctamente.
+2. Entra en [Google Search Console](https://search.google.com/search-console/) con una cuenta Google y crea una propiedad de tipo **Prefijo de URL** con `https://am-vs-web.pages.dev/`.
+3. Verifica la propiedad con el método **Etiqueta HTML**: copia el token que Google proporciona y añádelo como `<meta name="google-site-verification" content="TOKEN" />` dentro de `<head>` en `index.html`. Sube ese cambio y pulsa **Verificar** en Search Console.
+4. En Search Console, abre **Sitemaps**, escribe `sitemap.xml` y envíalo. Usa **Inspección de URL** para la página principal, `/repertorio` y páginas de marchas y pulsa **Solicitar indexación**.
+5. En [Bing Webmaster Tools](https://www.bing.com/webmasters/), importa la propiedad de Search Console o añade la misma URL y envía `https://am-vs-web.pages.dev/sitemap.xml`.
+6. Para ayudar a asociar la web con búsquedas como “AM Virgen de la Soledad Doña Mencía”, usa el mismo nombre en los perfiles oficiales, enlaza la web desde redes sociales y publica contenido propio con nombres claros para marchas, actuaciones e historia.
+
+La indexación no es instantánea ni garantiza una posición concreta. Puede tardar días o semanas; Search Console muestra errores de rastreo e indexación. Si en el futuro se compra un dominio propio, hay que actualizar la URL base en el sitemap, metadatos/canonical y las propiedades de buscadores.
