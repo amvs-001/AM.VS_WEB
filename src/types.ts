@@ -37,6 +37,9 @@ export type RepertoireItem = {
   category: string;
   year?: number;
   description?: string;
+  audioUrl?: string;
+  videoUrl?: string;
+  imageUrl?: string;
 };
 
 export type NewsItem = {

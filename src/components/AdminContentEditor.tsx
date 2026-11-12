@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import MediaEmbed from './MediaEmbed';
 
 const editableSections = [
   { table: 'site_settings', label: 'Textos y datos del sitio', page: 'Inicio y contacto' },
@@ -830,12 +831,18 @@ function renderMediaPreview(value: string) {
     const parsed: unknown = JSON.parse(value);
     if (!parsed || typeof parsed !== 'object') return null;
     const record = parsed as JsonRecord;
-    const url = record.clave === 'site_logo_url' && typeof record.valor === 'string'
-      ? record.valor
-      : Object.entries(record).find(([key, candidate]) =>
-      /(imagen|logo|portada|fotografia|archivo_url)/i.test(key) && typeof candidate === 'string' && candidate.startsWith('http'),
-    )?.[1];
-    return typeof url === 'string' ? <MediaPreview src={url} /> : null;
+    const media = record.clave === 'site_logo_url' && typeof record.valor === 'string'
+      ? [{ label: 'Logo', url: record.valor }]
+      : Object.entries(record)
+        .filter(([key, candidate]) =>
+          /(imagen|logo|portada|fotografia|archivo_url|audio_url|video_url)/i.test(key)
+            && typeof candidate === 'string'
+            && candidate.startsWith('http'),
+        )
+        .map(([key, url]) => ({ label: fieldLabel(key), url: String(url) }));
+    return media.length
+      ? <div className="admin-media-previews">{media.map((item) => <MediaEmbed key={item.label} url={item.url} title={item.label} />)}</div>
+      : null;
   } catch {
     return null;
   }
@@ -852,14 +859,18 @@ function RecordPreview({ json }: { json: string }) {
   }
   const title = recordTitle('', value);
   const description = String(value.descripcion ?? value.valor ?? '');
-  const image = value.clave === 'site_logo_url' && typeof value.valor === 'string'
-    ? value.valor
-    : Object.entries(value).find(([key, candidate]) =>
-    /(imagen|logo|portada|fotografia|archivo_url)/i.test(key) && typeof candidate === 'string' && candidate.startsWith('http'),
-  )?.[1];
+  const media = value.clave === 'site_logo_url' && typeof value.valor === 'string'
+    ? [{ label: 'Logo', url: value.valor }]
+    : Object.entries(value)
+      .filter(([key, candidate]) =>
+        /(imagen|logo|portada|fotografia|archivo_url|audio_url|video_url)/i.test(key)
+          && typeof candidate === 'string'
+          && candidate.startsWith('http'),
+      )
+      .map(([key, url]) => ({ label: fieldLabel(key), url: String(url) }));
   return (
     <article className="news-preview">
-      {typeof image === 'string' ? <MediaPreview src={image} /> : null}
+      {media.length ? <div className="admin-media-previews">{media.map((item) => <MediaEmbed key={item.label} url={item.url} title={item.label} />)}</div> : null}
       <h3>{title}</h3>
       <p>{description || 'Vista previa del contenido público.'}</p>
     </article>

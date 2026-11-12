@@ -100,6 +100,9 @@ function mapRepertoire(row: Record<string, unknown>): RepertoireItem {
     category: text(row, 'categoria', 'category'),
     ...(typeof year === 'number' ? { year } : {}),
     description: text(row, 'descripcion', 'description'),
+    audioUrl: text(row, 'audio_url') || undefined,
+    videoUrl: text(row, 'video_url') || undefined,
+    imageUrl: text(row, 'imagen_url') || undefined,
   };
 }
 

@@ -4,6 +4,40 @@
 alter table public.news
   add column if not exists programada_para timestamptz;
 
+do $$
+declare
+  march record;
+  updated_rows integer;
+begin
+  for march in
+    select *
+    from (values
+      ('En vos confío', 'https://youtu.be/HN7ailnbUMI'),
+      ('En la cena del Señor', 'https://youtu.be/s2li8EfG2PU'),
+      ('Entrando en Jerusalén', 'https://youtu.be/DfwFEgYk6EI'),
+      ('Oh Pecador', 'https://youtu.be/PiGNcdbxjqA'),
+      ('Junto a ti', 'https://youtu.be/xwhyvBM9W5E'),
+      ('La Esperanza de María', 'https://youtu.be/ah85o5j4JIg'),
+      ('Nuestro Señor', 'https://youtu.be/pBz0M-Ky_ys'),
+      ('Reina de Reyes', 'https://youtu.be/PW0Rdla9i98'),
+      ('Tu Dulce Rostro Cautivo', 'https://youtu.be/T7rKytDQdVU')
+    ) as videos(titulo, video_url)
+  loop
+    update public.repertoire
+       set video_url = march.video_url,
+           updated_at = now()
+       where translate(lower(btrim(titulo)), 'áéíóúüñ', 'aeiouun')
+           = translate(lower(btrim(march.titulo)), 'áéíóúüñ', 'aeiouun');
+    get diagnostics updated_rows = row_count;
+
+    if updated_rows = 0 then
+      insert into public.repertoire (titulo, categoria, video_url)
+      values (march.titulo, 'Marcha', march.video_url);
+    end if;
+  end loop;
+end;
+$$;
+
 alter table public.profiles
   add column if not exists apellidos text not null default '',
   add column if not exists telefono text not null default '',

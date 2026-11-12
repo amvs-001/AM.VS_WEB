@@ -1,8 +1,9 @@
 import { createContext, FormEvent, useContext, useEffect, useMemo, useState } from 'react';
-import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { events, galleryAlbums, historyText, members, news, repertoire, siteSettings, socialLinks, sponsors, timeline } from './data/siteData';
 import { fetchPublicData, isSupabaseConfigured, supabase, type PublicData } from './lib/supabase';
 import AdminContentEditor from './components/AdminContentEditor';
+import MediaEmbed from './components/MediaEmbed';
 
 const initialPublicData: PublicData = {
   source: 'local',
@@ -21,6 +22,36 @@ const PublicDataContext = createContext<PublicData>(initialPublicData);
 
 function usePublicData() {
   return useContext(PublicDataContext);
+}
+
+function repertoireSlug(title: string): string {
+  return title
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function repertoirePath(item: { title: string }): string {
+  return `/repertorio/${repertoireSlug(item.title)}`;
+}
+
+function SocialIcon({ label }: { label: string }) {
+  const name = label.toLowerCase();
+  if (name.includes('instagram')) {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="18" cy="6" r="1" className="icon-fill" /></svg>;
+  }
+  if (name.includes('youtube')) {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><path className="icon-fill" d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.5 12a31 31 0 0 0-.5-4.8ZM9.7 15.3V8.7l5.8 3.3-5.8 3.3Z" /></svg>;
+  }
+  if (name.includes('facebook')) {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><path className="icon-fill" d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5h1.7V3.9c-.3 0-1.3-.1-2.4-.1-2.4 0-4.1 1.5-4.1 4.2V10H7.5v3h2.8v8h3.2Z" /></svg>;
+  }
+  if (name.includes('tiktok')) {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><path className="icon-fill" d="M19.6 7.1a5.8 5.8 0 0 1-3.5-1.2v8.2a5.7 5.7 0 1 1-5.7-5.7c.4 0 .8 0 1.2.1v3.2a2.6 2.6 0 1 0 1.5 2.4V2.5h3.1c.3 2.2 1.8 3.9 4 4.3v3.1a8.8 8.8 0 0 1-.6 0Z" /></svg>;
+  }
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></svg>;
 }
 
 const navItems = [
@@ -121,6 +152,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/historia" element={<HistoryPage />} />
           <Route path="/repertorio" element={<RepertoirePage />} />
+          <Route path="/repertorio/:slug" element={<RepertoireDetailPage />} />
           <Route path="/actuaciones" element={<EventsPage />} />
           <Route path="/galeria" element={<GalleryPage />} />
           <Route path="/componentes" element={<MembersPage />} />
@@ -149,8 +181,8 @@ function App() {
             <ul className="footer-links">
               {publicData.socialLinks.map((social) => (
                 <li key={social.label}>
-                  <a href={social.url} target="_blank" rel="noreferrer">
-                    {social.label}
+                  <a className="social-icon-link" href={social.url} target="_blank" rel="noreferrer" aria-label={social.label} title={social.label}>
+                    <SocialIcon label={social.label} />
                   </a>
                 </li>
               ))}
@@ -327,13 +359,50 @@ function RepertoirePage() {
           {repertoireItems.map((item) => (
             <article key={item.id} className="repertoire-card">
               <span className="card-tag">{item.category}</span>
-              <h3>{item.title}</h3>
+              <h3><Link to={repertoirePath(item)}>{item.title}</Link></h3>
               <p>{item.author}</p>
               {item.description ? <small>{item.description}</small> : null}
+              {item.videoUrl ? <MediaEmbed url={item.videoUrl} title={`Vídeo de ${item.title}`} /> : null}
+              {!item.videoUrl && item.audioUrl ? <MediaEmbed url={item.audioUrl} title={`Audio de ${item.title}`} /> : null}
+              {!item.videoUrl && !item.audioUrl && item.imageUrl ? <img className="repertoire-media" src={item.imageUrl} alt={item.title} loading="lazy" /> : null}
+              <Link className="button secondary repertoire-detail-link" to={repertoirePath(item)}>Ver ficha y multimedia</Link>
             </article>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function RepertoireDetailPage() {
+  const { slug } = useParams();
+  const { repertoire: repertoireItems } = usePublicData();
+  const item = repertoireItems.find((entry) => repertoireSlug(entry.title) === slug);
+
+  if (!item) return <NotFoundPage />;
+  const media = [
+    { url: item.videoUrl, label: 'Vídeo' },
+    { url: item.audioUrl, label: 'Audio' },
+    { url: item.imageUrl, label: 'Imagen' },
+  ].filter((entry): entry is { url: string; label: string } => Boolean(entry.url));
+
+  return (
+    <div className="container section-page">
+      <PageHeader title={item.title} subtitle={[item.category, item.author].filter(Boolean).join(' · ')} />
+      <article className="repertoire-detail">
+        {item.description ? <p>{item.description}</p> : null}
+        {media.length ? (
+          <div className="repertoire-detail-media">
+            {media.map((entry) => (
+              <section key={entry.label}>
+                <h2>{entry.label}</h2>
+                <MediaEmbed url={entry.url} title={`${entry.label} de ${item.title}`} />
+              </section>
+            ))}
+          </div>
+        ) : <p className="empty-state">Todavía no hay archivos multimedia para esta marcha.</p>}
+        <Link to="/repertorio" className="button secondary">Volver al repertorio</Link>
+      </article>
     </div>
   );
 }
