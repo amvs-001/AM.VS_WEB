@@ -54,6 +54,70 @@ function SocialIcon({ label }: { label: string }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></svg>;
 }
 
+function TabPositionRestoration() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    const storageKey = `amvs:scroll-position:${pathname}`;
+    let saveTimer = 0;
+
+    const savePosition = () => {
+      window.clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(() => {
+        try {
+          window.sessionStorage.setItem(storageKey, String(window.scrollY));
+        } catch (error) {
+          console.error('No se pudo guardar la posición de la página:', error);
+        }
+      }, 120);
+    };
+
+    const saveImmediately = () => {
+      window.clearTimeout(saveTimer);
+      try {
+        window.sessionStorage.setItem(storageKey, String(window.scrollY));
+      } catch (error) {
+        console.error('No se pudo guardar la posición de la página:', error);
+      }
+    };
+
+    const restorePosition = () => {
+      try {
+        const savedPosition = Number(window.sessionStorage.getItem(storageKey));
+        if (Number.isFinite(savedPosition) && savedPosition > 0) {
+          window.requestAnimationFrame(() => window.scrollTo({ top: savedPosition, behavior: 'auto' }));
+        }
+      } catch (error) {
+        console.error('No se pudo restaurar la posición de la página:', error);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') saveImmediately();
+      else restorePosition();
+    };
+
+    window.addEventListener('scroll', savePosition, { passive: true });
+    window.addEventListener('blur', saveImmediately);
+    window.addEventListener('focus', restorePosition);
+    window.addEventListener('pagehide', saveImmediately);
+    window.addEventListener('pageshow', restorePosition);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      saveImmediately();
+      window.removeEventListener('scroll', savePosition);
+      window.removeEventListener('blur', saveImmediately);
+      window.removeEventListener('focus', restorePosition);
+      window.removeEventListener('pagehide', saveImmediately);
+      window.removeEventListener('pageshow', restorePosition);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [pathname]);
+
+  return null;
+}
+
 const navItems = [
   { to: '/', label: 'Inicio' },
   { to: '/historia', label: 'Historia' },
@@ -99,7 +163,6 @@ function App() {
       .then((data) => {
         setPublicData(data);
         setConnectionError('');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
       })
       .catch((error: unknown) => {
         console.error('No se pudieron actualizar los datos públicos:', error);
@@ -109,6 +172,7 @@ function App() {
 
   return (
     <PublicDataContext.Provider value={publicData}>
+    <TabPositionRestoration />
     <div className="app-shell">
       <header className="site-header">
         <div className="container header-inner">
