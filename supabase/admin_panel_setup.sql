@@ -73,10 +73,28 @@ as $$
   );
 $$;
 
+create or replace function public.has_superadmin_role()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+      from public.profiles p
+     where p.id = (select auth.uid())
+       and p.activo = true
+       and p.rol = 'Superadministrador'
+  );
+$$;
+
 revoke all on function public.has_content_role() from public;
 revoke all on function public.has_admin_role() from public;
+revoke all on function public.has_superadmin_role() from public;
 grant execute on function public.has_content_role() to authenticated;
 grant execute on function public.has_admin_role() to authenticated;
+grant execute on function public.has_superadmin_role() to authenticated;
 grant select on public.profiles to authenticated;
 grant select, insert, update, delete on public.content_drafts to authenticated;
 grant select on public.news, public.events, public.repertoire, public.gallery_albums,
@@ -221,6 +239,7 @@ begin
     'events',
     'repertoire',
     'gallery_albums',
+    'gallery_items',
     'members',
     'sponsors',
     'timeline',
@@ -229,6 +248,7 @@ begin
   loop
     role_function := case
       when table_name = 'repertoire' then 'has_content_role'
+      when table_name = 'site_settings' then 'has_superadmin_role'
       else 'has_admin_role'
     end;
     execute format('alter table public.%I enable row level security', table_name);

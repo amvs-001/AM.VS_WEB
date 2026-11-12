@@ -7,6 +7,7 @@ const editableSections = [
   { table: 'events', label: 'Actuaciones', page: 'Actuaciones' },
   { table: 'repertoire', label: 'Repertorio', page: 'Repertorio' },
   { table: 'gallery_albums', label: 'Galería', page: 'Galería' },
+  { table: 'gallery_items', label: 'Fotos y vídeos de galería', page: 'Galería' },
   { table: 'members', label: 'Componentes', page: 'Componentes' },
   { table: 'sponsors', label: 'Patrocinadores', page: 'Patrocinadores' },
 ] as const;
@@ -39,6 +40,10 @@ function canManageAllContent(role: string): boolean {
   return role === 'Superadministrador' || role === 'Administrador';
 }
 
+function canManageSiteSettings(role: string): boolean {
+  return role === 'Superadministrador';
+}
+
 const emptyNews: NewsForm = {
   id: '',
   titulo: '',
@@ -55,13 +60,15 @@ function defaultRecord(section: EditableSection): JsonRecord {
     case 'site_settings':
       return { clave: 'site_home_intro', valor: '' };
     case 'timeline':
-      return { anio: new Date().getFullYear().toString(), titulo: '', descripcion: '', orden: 0 };
+      return { anio: new Date().getFullYear().toString(), titulo: '', descripcion: '', imagen: '', orden: 0 };
     case 'events':
-      return { titulo: '', descripcion: '', localidad: '', tipo: 'Procesión', estado: 'proxima', fecha: null };
+      return { titulo: '', descripcion: '', localidad: '', tipo: 'Procesión', estado: 'proxima', fecha: null, imagen: '' };
     case 'repertoire':
-      return { titulo: '', autor: '', categoria: 'Marcha', descripcion: '' };
+      return { titulo: '', autor: '', categoria: 'Marcha', descripcion: '', imagen_url: '', audio_url: '', video_url: '' };
     case 'gallery_albums':
       return { titulo: '', descripcion: '', categoria: 'Semana Santa', fecha: new Date().toISOString().slice(0, 10), portada: '' };
+    case 'gallery_items':
+      return { album_id: '', titulo: '', descripcion: '', archivo_url: '', tipo: 'image', orden: 0 };
     case 'members':
       return { nombre: '', instrumento: '', seccion: '', cargo: '', fotografia: '', visible: true, orden: 0 };
     case 'sponsors':
@@ -83,12 +90,18 @@ function fieldLabel(value: string): string {
     anio: 'Año',
     orden: 'Orden',
     localidad: 'Localidad',
+    imagen: 'Imagen (URL)',
+    imagen_url: 'Imagen (URL)',
+    audio_url: 'Audio (URL)',
+    video_url: 'Vídeo (URL)',
     tipo: 'Tipo',
     estado: 'Estado',
     fecha: 'Fecha',
     autor: 'Autor',
     categoria: 'Categoría',
     portada: 'Portada (URL)',
+    album_id: 'Álbum',
+    archivo_url: 'Archivo multimedia (URL)',
     nombre: 'Nombre',
     instrumento: 'Instrumento',
     seccion: 'Sección',
@@ -137,9 +150,10 @@ export default function AdminContentEditor({
   role: string;
   onPublished: () => void;
 }) {
-  const [section, setSection] = useState<EditableSection>(() => canManageAllContent(role) ? 'site_settings' : 'repertoire');
+  const [section, setSection] = useState<EditableSection>(() => canManageSiteSettings(role) ? 'site_settings' : 'repertoire');
   const [activePanel, setActivePanel] = useState<ActivePanel>('content');
   const [rows, setRows] = useState<JsonRecord[]>([]);
+  const [galleryAlbums, setGalleryAlbums] = useState<JsonRecord[]>([]);
   const [drafts, setDrafts] = useState<DraftRecord[]>([]);
   const [selectedDraftId, setSelectedDraftId] = useState('');
   const [selectedRecordId, setSelectedRecordId] = useState('');
@@ -157,9 +171,11 @@ export default function AdminContentEditor({
     () => editableSections.find((item) => item.table === section)?.label ?? section,
     [section],
   );
-  const availableSections = canManageAllContent(role)
+  const availableSections = canManageSiteSettings(role)
     ? editableSections
-    : editableSections.filter((item) => item.table === 'repertoire');
+    : canManageAllContent(role)
+      ? editableSections.filter((item) => item.table !== 'site_settings')
+      : editableSections.filter((item) => item.table === 'repertoire');
   const availableDrafts = drafts.filter((draft) =>
     availableSections.some((item) => item.table === draft.seccion)
       || (canManageAllContent(role) && draft.seccion === 'news'),
@@ -204,6 +220,14 @@ export default function AdminContentEditor({
       const { data, error: queryError } = await supabase.from(target).select('*');
       if (queryError) throw queryError;
       setRows((data ?? []) as JsonRecord[]);
+      if (target === 'gallery_items') {
+        const { data: albums, error: albumsError } = await supabase
+          .from('gallery_albums')
+          .select('id, titulo')
+          .order('titulo');
+        if (albumsError) throw albumsError;
+        setGalleryAlbums((albums ?? []) as JsonRecord[]);
+      }
     } catch (loadError) {
       setError(`No se pudo cargar ${target}: ${loadError instanceof Error ? loadError.message : 'error desconocido'}`);
       setRows([]);
@@ -239,8 +263,12 @@ export default function AdminContentEditor({
   }
 
   function updateRecordField(field: string, value: unknown) {
+    updateRecordFields({ [field]: value });
+  }
+
+  function updateRecordFields(values: JsonRecord) {
     if (!recordValue) return;
-    setRecordJson(JSON.stringify({ ...recordValue, [field]: value }, null, 2));
+    setRecordJson(JSON.stringify({ ...recordValue, ...values }, null, 2));
   }
 
   function openSection(target: EditableSection) {
@@ -268,7 +296,6 @@ export default function AdminContentEditor({
     setError('');
     if (draft.seccion === 'news') {
       setActivePanel('news');
-      setSection('site_settings');
       setNewsForm({
         ...emptyNews,
         ...(draft.payload as Partial<NewsForm>),
@@ -313,6 +340,26 @@ export default function AdminContentEditor({
     setIsSaving(false);
   }
 
+  async function deleteSelectedNews() {
+    if (!supabase || !newsForm.id) return;
+    if (!window.confirm(`¿Seguro que quieres eliminar la noticia «${newsForm.titulo}»? Esta acción no se puede deshacer.`)) return;
+
+    setIsSaving(true);
+    setError('');
+    setMessage('');
+    const { error: deleteError } = await supabase.from('news').delete().eq('id', newsForm.id);
+    if (deleteError) {
+      setError(`No se pudo eliminar la noticia: ${deleteError.message}`);
+      setIsSaving(false);
+      return;
+    }
+    startNews();
+    setMessage('Noticia eliminada correctamente.');
+    await loadNews();
+    onPublished();
+    setIsSaving(false);
+  }
+
   async function saveRecordDraft(event: FormEvent) {
     event.preventDefault();
     setError('');
@@ -351,6 +398,10 @@ export default function AdminContentEditor({
       setError('En datos del sitio hacen falta los campos de texto "clave" y "valor".');
       return;
     }
+    if (section === 'gallery_items' && (!payload.album_id || !payload.archivo_url)) {
+      setError('Selecciona un álbum y sube una imagen o un vídeo antes de publicar.');
+      return;
+    }
     setIsSaving(true);
     setError('');
     setMessage('');
@@ -375,6 +426,34 @@ export default function AdminContentEditor({
     setSelectedDraftId('');
     await loadSection(section);
     await loadDrafts();
+    onPublished();
+    setIsSaving(false);
+  }
+
+  async function deleteSelectedRecord() {
+    if (!supabase || !recordValue) return;
+    const identityColumn = section === 'site_settings' ? 'clave' : 'id';
+    const identity = recordValue[identityColumn];
+    if (typeof identity !== 'string' && typeof identity !== 'number') {
+      setError('No se puede borrar el registro porque no tiene un identificador válido.');
+      return;
+    }
+    if (!window.confirm(`¿Seguro que quieres eliminar «${recordTitle(section, recordValue)}»? Esta acción no se puede deshacer.`)) return;
+
+    setIsSaving(true);
+    setError('');
+    setMessage('');
+    const { error: deleteError } = await supabase.from(section).delete().eq(identityColumn, identity);
+    if (deleteError) {
+      setError(`No se pudo eliminar el registro: ${deleteError.message}`);
+      setIsSaving(false);
+      return;
+    }
+    setSelectedRecordId('');
+    setSelectedDraftId('');
+    setRecordJson(JSON.stringify(defaultRecord(section), null, 2));
+    setMessage('Registro eliminado correctamente.');
+    await loadSection(section);
     onPublished();
     setIsSaving(false);
   }
@@ -627,6 +706,7 @@ export default function AdminContentEditor({
                   <button type="button" className="button secondary" onClick={() => setPreviewOpen((current) => !current)}>Vista previa</button>
                   <button type="button" className="button primary" disabled={isSaving || isUploading} onClick={() => { void publishNews(false); }}>Publicar ahora</button>
                   <button type="button" className="button primary" disabled={isSaving || isUploading || !newsForm.programada_para} onClick={() => { void publishNews(true); }}>Programar publicación</button>
+                  {newsForm.id ? <button type="button" className="button secondary" disabled={isSaving} onClick={() => { void deleteSelectedNews(); }}>Eliminar noticia</button> : null}
                 </div>
               </form>
               {previewOpen ? (
@@ -647,10 +727,12 @@ export default function AdminContentEditor({
                   <p>Edita o crea el registro que se muestra en «{editableSections.find((item) => item.table === section)?.page}».</p>
                 </div>
               </div>
-              {['site_settings', 'gallery_albums', 'members', 'sponsors'].includes(section) && (
+              {['site_settings', 'events', 'timeline', 'repertoire', 'gallery_albums', 'gallery_items', 'members', 'sponsors'].includes(section) && (
                 <label className="full-width">
-                  {section === 'site_settings' ? 'Subir logo o imagen del sitio' : 'Subir imagen'}
-                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={isUploading} onChange={(event) => {
+                  {section === 'site_settings' ? 'Subir logo o imagen del sitio' : section === 'gallery_items' ? 'Subir imagen o vídeo' : 'Subir imagen'}
+                  <input type="file" accept={section === 'gallery_items'
+                    ? 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm'
+                    : 'image/jpeg,image/png,image/webp,image/gif'} disabled={isUploading} onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (file) void uploadMedia(file, (url) => {
                       if (section === 'site_settings') {
@@ -658,8 +740,23 @@ export default function AdminContentEditor({
                         setSelectedRecordId('site_logo_url');
                         setSelectedDraftId('');
                       } else {
-                        const field = section === 'gallery_albums' ? 'portada' : section === 'members' ? 'fotografia' : 'logotipo';
-                        updateRecordField(field, url);
+                        if (section === 'gallery_items') {
+                          updateRecordFields({
+                            archivo_url: url,
+                            tipo: file.type.startsWith('video/') ? 'video' : 'image',
+                          });
+                        } else {
+                          const field = section === 'gallery_albums'
+                            ? 'portada'
+                            : section === 'repertoire'
+                              ? 'imagen_url'
+                            : section === 'members'
+                              ? 'fotografia'
+                              : section === 'sponsors'
+                                ? 'logotipo'
+                                : 'imagen';
+                          updateRecordField(field, url);
+                        }
                       }
                     });
                     event.currentTarget.value = '';
@@ -667,7 +764,7 @@ export default function AdminContentEditor({
                   <span className="helper-text">
                     {section === 'site_settings'
                       ? 'Al publicarlo sustituye el escudo actual. Máximo 20 MB.'
-                      : 'La imagen se asocia a este registro al publicar. Máximo 20 MB.'}
+                      : 'El archivo se asocia a este registro al publicar. Máximo 20 MB.'}
                   </span>
                 </label>
               )}
@@ -689,6 +786,18 @@ export default function AdminContentEditor({
                           <select value={typeof value === 'string' ? value : ''} onChange={(event) => updateRecordField(key, event.target.value)}>
                             {fieldOptions(section, key)?.map((option) => <option key={option} value={option}>{option}</option>)}
                           </select>
+                        ) : section === 'gallery_items' && key === 'album_id' ? (
+                          <select value={typeof value === 'string' ? value : ''} onChange={(event) => updateRecordField(key, event.target.value)}>
+                            <option value="">Selecciona un álbum…</option>
+                            {galleryAlbums.map((album) => (
+                              <option key={String(album.id)} value={String(album.id)}>{String(album.titulo)}</option>
+                            ))}
+                          </select>
+                        ) : section === 'gallery_items' && key === 'tipo' ? (
+                          <select value={typeof value === 'string' ? value : 'image'} onChange={(event) => updateRecordField(key, event.target.value)}>
+                            <option value="image">Imagen</option>
+                            <option value="video">Vídeo</option>
+                          </select>
                         ) : typeof value === 'string' && ['descripcion', 'valor', 'resumen'].includes(key) ? (
                           <textarea rows={key === 'valor' ? 5 : 4} value={value} onChange={(event) => updateRecordField(key, event.target.value)} />
                         ) : (
@@ -705,6 +814,7 @@ export default function AdminContentEditor({
                 <button type="submit" className="button secondary" disabled={isSaving || isUploading}>Guardar borrador</button>
                 <button type="button" className="button secondary" onClick={() => setPreviewOpen((current) => !current)}>Vista previa</button>
                 <button type="button" className="button primary" disabled={isSaving || isUploading} onClick={() => { void publishRecordDraft(); }}>Publicar cambios</button>
+                {selectedRecordId ? <button type="button" className="button secondary" disabled={isSaving} onClick={() => { void deleteSelectedRecord(); }}>Eliminar registro</button> : null}
               </div>
               {previewOpen ? <RecordPreview json={recordJson} /> : null}
             </form>
@@ -723,7 +833,7 @@ function renderMediaPreview(value: string) {
     const url = record.clave === 'site_logo_url' && typeof record.valor === 'string'
       ? record.valor
       : Object.entries(record).find(([key, candidate]) =>
-      /(imagen|logo|portada|fotografia)/i.test(key) && typeof candidate === 'string' && candidate.startsWith('http'),
+      /(imagen|logo|portada|fotografia|archivo_url)/i.test(key) && typeof candidate === 'string' && candidate.startsWith('http'),
     )?.[1];
     return typeof url === 'string' ? <MediaPreview src={url} /> : null;
   } catch {
@@ -745,7 +855,7 @@ function RecordPreview({ json }: { json: string }) {
   const image = value.clave === 'site_logo_url' && typeof value.valor === 'string'
     ? value.valor
     : Object.entries(value).find(([key, candidate]) =>
-    /(imagen|logo|portada|fotografia)/i.test(key) && typeof candidate === 'string' && candidate.startsWith('http'),
+    /(imagen|logo|portada|fotografia|archivo_url)/i.test(key) && typeof candidate === 'string' && candidate.startsWith('http'),
   )?.[1];
   return (
     <article className="news-preview">

@@ -60,7 +60,7 @@ El panel necesita una tabla privada de borradores, la columna para programar not
 4. Asigna el rol interno siguiendo la sección siguiente. No se asigna privilegio administrativo por registrarse o usar Google.
 5. No publiques una clave `service_role` en la web ni en `.env`; el panel usa la clave pública y Supabase RLS para autorizar cambios.
 
-La migración activa RLS, añade políticas de lectura pública para el contenido visible, permite escrituras sólo a perfiles internos activos, protege los borradores por usuario y configura el bucket público `site-media` con subida reservada a esos perfiles. También cambia la lectura pública de noticias para ocultar borradores y noticias cuya fecha programada todavía no ha llegado. Crea perfiles básicos automáticamente para usuarios nuevos con rol `Usuario`, nunca administrador; si ya existía un perfil con ese correo, lo vincula al UUID autenticado y quita el rol interno, que debe volver a asignarse explícitamente. La migración se puede ejecutar otra vez sin duplicar políticas ni el bucket.
+La migración activa RLS, añade políticas de lectura pública para el contenido visible, protege los borradores por usuario y configura el bucket público `site-media`. Los roles `Administrador` y `Superadministrador` pueden gestionar contenido editorial, incluidas noticias, historia, actuaciones y álbumes/fotos/vídeos de galería; `Editor` sólo puede gestionar repertorio. Sólo `Superadministrador` puede cambiar o borrar los ajustes generales del sitio y el logo. Estas reglas se aplican también en Supabase, aunque alguien intente saltarse la interfaz. La lectura pública de noticias oculta borradores y noticias cuya fecha programada todavía no ha llegado. La migración crea perfiles nuevos como `Usuario`, nunca administrador; si ya existía un perfil con ese correo, lo vincula al UUID autenticado y quita el rol interno, que debe volver a asignarse explícitamente. Se puede ejecutar de nuevo para actualizar las políticas.
 
 ## 4. Asignar el primer administrador de Google
 
@@ -112,12 +112,22 @@ where lower(correo) = lower('cobourbanofrancisco@gmail.com');
 
 Debe salir una fila con `activo = true` y `rol = Superadministrador`. Conserva este rol sólo para la persona que gestionará otros permisos; usa `Administrador` para gestión habitual y `Editor` para edición de repertorio. Las cuentas creadas mediante registro público se quedan en rol `Usuario` y no pueden editar contenido.
 
+Para dar el rol de administrador habitual a otra cuenta, primero esa persona debe iniciar sesión una vez; después ejecuta en SQL Editor, cambiando el correo:
+
+```sql
+update public.profiles
+set rol = 'Administrador', activo = true
+where lower(correo) = lower('correo-de-la-persona@gmail.com');
+```
+
+No uses `Superadministrador` para el equipo editorial: ese rol permite cambiar todos los ajustes generales y el logo.
+
 ## 5. Uso del panel
 
 1. Arranca la web con `npm run dev` y entra en `/admin`.
 2. Inicia sesión con una cuenta cuyo perfil tenga uno de los roles permitidos. Una cuenta registrada sin perfil administrativo no obtiene acceso automáticamente.
-3. En **Datos del sitio, Historia, Actuaciones, Repertorio, Galería, Componentes** y **Patrocinadores**, elige un registro o pulsa **Nuevo**. Edita sus campos, pulsa **Vista previa**, guarda como borrador y usa **Publicar cambios** para hacerlo visible. En datos del sitio puedes modificar el texto de portada, el relato histórico, los datos de contacto, los valores y los enlaces sociales (`site_social_links`, como un array JSON de `label` y `url`).
-4. Para cambiar el escudo, en **Datos del sitio** sube una imagen, guarda el registro de `site_logo_url` como borrador, revisa la vista previa y publícalo.
+3. Con rol **Administrador**, gestiona noticias, historia, actuaciones, repertorio, galería, componentes y patrocinadores. En cada sección elige un registro o pulsa **Nuevo**; edita, previsualiza y publica. La pestaña **Fotos y vídeos de galería** permite asociar cada archivo a un álbum existente. Antes de borrar un registro o una noticia, el panel pide confirmación.
+4. Con rol **Superadministrador** aparecen además **Textos y datos del sitio**, donde se editan los textos de portada, relato histórico, contacto, enlaces sociales (`site_social_links`, como un array JSON de `label` y `url`) y el logo. Para cambiar el escudo, sube una imagen, revisa la vista previa y pulsa **Publicar cambios**.
 5. En **Noticias**, crea el titular y la descripción, añade texto completo y opcionalmente una imagen o vídeo. Puedes guardar un borrador, publicar ahora o indicar fecha y hora y pulsar **Programar publicación**.
 6. El selector **Borradores guardados** permite recuperar borradores. Publicar un borrador de contenido lo elimina de la lista; la noticia se guarda en la tabla `news`.
 
@@ -127,18 +137,19 @@ Las noticias programadas quedan guardadas con estado publicado, pero las políti
 
 1. Cierra sesión, entra en `/admin` y pulsa **Continuar con Google** con el correo administrador.
 2. Confirma que vuelve a `/admin` y aparece el panel. Una cuenta sin rol interno se desconecta y vuelve a Inicio; si una consulta de Supabase falla, se muestra un error en vez de conceder acceso.
-3. Abre otra sesión privada del navegador con una cuenta Google distinta; inicia sesión en `/admin`. Debe salir “Sin permisos de administración”, no el editor.
+3. Abre otra sesión con una cuenta `Administrador`: debe ver las herramientas editoriales, incluida noticias y galería, pero no **Textos y datos del sitio**. Una cuenta `Usuario` no tendrá acceso al panel.
 4. Guarda una noticia como borrador; comprueba que no aparece en Inicio ni en los resultados públicos de `news`.
 5. Abre el borrador, usa Vista previa, publícalo y confirma que aparece en Inicio tras recargar.
 6. Programa una noticia para dentro de unos minutos. Confirma que no aparece antes, espera a la hora indicada y recarga.
-7. Sube una imagen y cambia un texto o registro en cada sección que vayas a gestionar. Revisa la página pública después de **Publicar cambios**.
-8. Comprueba en Supabase **Storage → site-media** que el archivo subió y en el Table Editor que el registro actualizado coincide.
-9. En la consola del navegador y Network, verifica que no haya errores. Nunca captures ni compartas tokens o claves.
+7. Con la cuenta `Administrador`, crea y borra una noticia de prueba, una entrada de historia y un álbum; sube una imagen a un álbum. Revisa la web pública después de publicar.
+8. Comprueba que esa cuenta no puede editar `site_settings` ni publicar/cambiar el logo. Repite la prueba con `Superadministrador` y confirma que sí puede.
+9. Comprueba en Supabase **Storage → site-media** que el archivo subió y en el Table Editor que el registro actualizado coincide.
+10. En la consola del navegador y Network, verifica que no haya errores. Nunca captures ni compartas tokens o claves.
 
 ## 7. Límites conocidos
 
 - Los cambios se publican por registro; no hay una operación global que publique varios registros de forma atómica.
-- El editor de registros permite modificar y crear contenido, pero todavía no incluye acciones para borrar registros.
+- Al borrar un álbum se borran también sus elementos relacionados. Borrar un registro no elimina automáticamente el archivo multimedia de Storage, para evitar quitar archivos que pudieran estar compartidos o aún referenciados.
 - La vista previa muestra el contenido del registro o la tarjeta de noticia; no es una copia interactiva completa de toda la página.
 - Las imágenes y vídeos admitidos son JPEG, PNG, WebP, GIF, MP4 y WebM, con un máximo de 20 MB.
 - Antes de publicar contenido personal (por ejemplo, nombres o fotografías de componentes), confirma que se dispone de autorización.

@@ -389,11 +389,25 @@ function GalleryPage() {
         <div className="card-grid three-col">
           {albums.map((album) => (
             <article key={album.id} className="gallery-card">
-              <div className="gallery-cover" aria-label={`Imagen de ${album.title}`} />
+              {album.coverImage
+                ? <img className="gallery-cover" src={album.coverImage} alt={`Portada de ${album.title}`} />
+                : <div className="gallery-cover" aria-label={`Imagen de ${album.title}`} />}
               <div className="gallery-body">
                 <span className="card-tag">{album.category}</span>
                 <h3>{album.title}</h3>
                 <p>{album.description}</p>
+                {album.items?.length ? (
+                  <div className="gallery-items">
+                    {album.items.map((item) => (
+                      <figure key={item.id}>
+                        {item.type === 'video'
+                          ? <video className="gallery-item-media" controls src={item.url}>Tu navegador no puede reproducir este vídeo.</video>
+                          : <img className="gallery-item-media" src={item.url} alt={item.title || album.title} />}
+                        {item.title ? <figcaption>{item.title}</figcaption> : null}
+                      </figure>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </article>
           ))}

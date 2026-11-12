@@ -13,6 +13,7 @@ import {
 import type {
   EventItem,
   GalleryAlbum,
+  GalleryMediaItem,
   MemberItem,
   NewsItem,
   RepertoireItem,
@@ -125,6 +126,16 @@ function mapAlbum(row: Record<string, unknown>): GalleryAlbum {
   };
 }
 
+function mapGalleryMediaItem(row: Record<string, unknown>): GalleryMediaItem {
+  return {
+    id: text(row, 'id'),
+    title: text(row, 'titulo'),
+    description: text(row, 'descripcion'),
+    url: text(row, 'archivo_url'),
+    type: text(row, 'tipo') === 'video' ? 'video' : 'image',
+  };
+}
+
 function mapMember(row: Record<string, unknown>): MemberItem {
   return {
     id: text(row, 'id'),
@@ -179,6 +190,7 @@ export async function fetchPublicData() {
     newsResponse,
     repertoireResponse,
     galleryResponse,
+    galleryItemsResponse,
     membersResponse,
     sponsorsResponse,
     timelineResponse,
@@ -192,6 +204,7 @@ export async function fetchPublicData() {
       .order('fecha_publicacion', { ascending: false }),
     supabase.from('repertoire').select('*').order('titulo', { ascending: true }),
     supabase.from('gallery_albums').select('*').order('fecha', { ascending: false }),
+    supabase.from('gallery_items').select('*').order('orden', { ascending: true }),
     supabase.from('members').select('*').eq('visible', true).order('orden', { ascending: true }),
     supabase.from('sponsors').select('*').eq('activo', true).order('orden', { ascending: true }),
     supabase.from('timeline').select('*').order('orden', { ascending: true }),
@@ -203,6 +216,7 @@ export async function fetchPublicData() {
     newsResponse,
     repertoireResponse,
     galleryResponse,
+    galleryItemsResponse,
     membersResponse,
     sponsorsResponse,
     timelineResponse,
@@ -214,6 +228,14 @@ export async function fetchPublicData() {
   }
 
   const settingRows = (settingsResponse.data ?? []) as Array<Record<string, unknown>>;
+  const galleryItemsByAlbum = new Map<string, GalleryMediaItem[]>();
+  for (const row of (galleryItemsResponse.data ?? []) as Array<Record<string, unknown>>) {
+    const item = mapGalleryMediaItem(row);
+    const albumId = text(row, 'album_id');
+    const albumItems = galleryItemsByAlbum.get(albumId) ?? [];
+    albumItems.push(item);
+    galleryItemsByAlbum.set(albumId, albumItems);
+  }
   const settings = new Map(settingRows.map((row) => [text(row, 'clave'), text(row, 'valor')]));
   const foundationYear = Number(settings.get('site_foundation_year'));
   let publicSocialLinks = socialLinks;
@@ -252,7 +274,10 @@ export async function fetchPublicData() {
     events: ((eventsResponse.data ?? []) as Array<Record<string, unknown>>).map(mapEvent),
     news: ((newsResponse.data ?? []) as Array<Record<string, unknown>>).map(mapNews),
     repertoire: ((repertoireResponse.data ?? []) as Array<Record<string, unknown>>).map(mapRepertoire),
-    galleryAlbums: ((galleryResponse.data ?? []) as Array<Record<string, unknown>>).map(mapAlbum),
+    galleryAlbums: ((galleryResponse.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+      ...mapAlbum(row),
+      items: galleryItemsByAlbum.get(text(row, 'id')) ?? [],
+    })),
     members: ((membersResponse.data ?? []) as Array<Record<string, unknown>>).map(mapMember),
     sponsors: ((sponsorsResponse.data ?? []) as Array<Record<string, unknown>>).map(mapSponsor),
     timeline: ((timelineResponse.data ?? []) as Array<Record<string, unknown>>).map(mapTimeline),

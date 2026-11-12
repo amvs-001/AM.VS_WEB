@@ -56,6 +56,15 @@ export type GalleryAlbum = {
   category: 'Semana Santa' | 'Sábado de Gloria' | 'Certámenes' | 'Conciertos' | 'Ensayos' | 'Eventos especiales';
   date: string;
   coverImage?: string;
+  items?: GalleryMediaItem[];
+};
+
+export type GalleryMediaItem = {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  type: 'image' | 'video';
 };
 
 export type MemberItem = {
