@@ -4,3 +4,4 @@ Disallow: /admin
 Disallow: /registro
 
 Sitemap: https://am-vs-web.pages.dev/sitemap.xml
+Sitemap: https://am-vs-web.pages.dev/sitemap.txt
