@@ -139,65 +139,158 @@ function SocialIcon({ label }: { label: string }) {
 }
 
 function TabPositionRestoration() {
-  const { pathname } = useLocation();
+  const { pathname, search, hash } = useLocation();
+  const { source } = usePublicData();
 
   useEffect(() => {
     const storageKey = `amvs:scroll-position:${pathname}`;
+    const activeTabKey = 'amvs:active-tab-state';
+    const route = `${pathname}${search}${hash}`;
+    const previousScrollRestoration = window.history.scrollRestoration;
     let saveTimer = 0;
+    let restorationTimers: number[] = [];
+
+    type ActiveTabState = {
+      route: string;
+      scrollY: number;
+      hiddenAt: number | null;
+    };
+
+    const readActiveTabState = (): ActiveTabState | null => {
+      try {
+        const stored = window.sessionStorage.getItem(activeTabKey);
+        if (!stored) return null;
+        const parsed: unknown = JSON.parse(stored);
+        if (
+          typeof parsed === 'object'
+          && parsed !== null
+          && 'route' in parsed
+          && typeof parsed.route === 'string'
+          && 'scrollY' in parsed
+          && typeof parsed.scrollY === 'number'
+          && Number.isFinite(parsed.scrollY)
+          && 'hiddenAt' in parsed
+          && (typeof parsed.hiddenAt === 'number' || parsed.hiddenAt === null)
+        ) {
+          return {
+            route: parsed.route,
+            scrollY: parsed.scrollY,
+            hiddenAt: parsed.hiddenAt,
+          };
+        }
+        return null;
+      } catch (error) {
+        console.error('No se pudo leer el estado de navegación de la pestaña:', error);
+        return null;
+      }
+    };
+
+    const saveState = (scrollY: number, hiddenAt: number | null) => {
+      const state: ActiveTabState = { route, scrollY, hiddenAt };
+      try {
+        window.sessionStorage.setItem(storageKey, String(scrollY));
+        window.sessionStorage.setItem(activeTabKey, JSON.stringify(state));
+      } catch (error) {
+        console.error('No se pudo guardar el estado de navegación de la pestaña:', error);
+      }
+    };
 
     const savePosition = () => {
       window.clearTimeout(saveTimer);
       saveTimer = window.setTimeout(() => {
-        try {
-          window.sessionStorage.setItem(storageKey, String(window.scrollY));
-        } catch (error) {
-          console.error('No se pudo guardar la posición de la página:', error);
-        }
+        const previousState = readActiveTabState();
+        saveState(window.scrollY, previousState?.hiddenAt ?? null);
       }, 120);
     };
 
-    const saveImmediately = () => {
+    const saveImmediately = (hiddenAt: number | null = null) => {
       window.clearTimeout(saveTimer);
-      try {
-        window.sessionStorage.setItem(storageKey, String(window.scrollY));
-      } catch (error) {
-        console.error('No se pudo guardar la posición de la página:', error);
+      saveState(window.scrollY, hiddenAt);
+    };
+
+    const restorePosition = (targetPosition?: number) => {
+      const activeState = readActiveTabState();
+      const savedPosition = targetPosition ?? (() => {
+        try {
+          return Number(window.sessionStorage.getItem(storageKey));
+        } catch (error) {
+          console.error('No se pudo leer la posición de la página:', error);
+          return Number.NaN;
+        }
+      })();
+      if (!Number.isFinite(savedPosition) || savedPosition <= 0) return;
+
+      restorationTimers.forEach((timer) => window.clearTimeout(timer));
+      restorationTimers = [];
+      const retryDelays = [0, 120, 400, 900];
+      retryDelays.forEach((delay) => {
+        const timer = window.setTimeout(() => {
+          window.requestAnimationFrame(() => {
+            window.scrollTo({ top: savedPosition, behavior: 'auto' });
+          });
+        }, delay);
+        restorationTimers.push(timer);
+      });
+
+      if (activeState?.hiddenAt !== null && activeState?.hiddenAt !== undefined) {
+        saveState(savedPosition, null);
       }
     };
 
-    const restorePosition = () => {
-      try {
-        const savedPosition = Number(window.sessionStorage.getItem(storageKey));
-        if (Number.isFinite(savedPosition) && savedPosition > 0) {
-          window.requestAnimationFrame(() => window.scrollTo({ top: savedPosition, behavior: 'auto' }));
-        }
-      } catch (error) {
-        console.error('No se pudo restaurar la posición de la página:', error);
-      }
+    const restoreActiveRoute = () => {
+      const activeState = readActiveTabState();
+      const savedForCurrentRoute = activeState
+        && activeState.route === route
+        && activeState.hiddenAt !== null
+        && Date.now() - activeState.hiddenAt < 10 * 60 * 1000;
+      restorePosition(savedForCurrentRoute ? activeState.scrollY : undefined);
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') saveImmediately();
-      else restorePosition();
+      if (document.visibilityState === 'hidden') {
+        saveImmediately(Date.now());
+      } else {
+        restoreActiveRoute();
+      }
     };
 
+    const handlePageShow = () => {
+      restoreActiveRoute();
+    };
+
+    const handleBlur = () => saveImmediately();
+    const handlePageHide = () => saveImmediately(Date.now());
+
+    window.history.scrollRestoration = 'manual';
+
+    const initialActiveState = readActiveTabState();
+    const savedForCurrentRoute = initialActiveState
+      && initialActiveState.route === route
+      && initialActiveState.hiddenAt !== null
+      && Date.now() - initialActiveState.hiddenAt < 10 * 60 * 1000;
+    restorePosition(savedForCurrentRoute ? initialActiveState.scrollY : undefined);
+    if (savedForCurrentRoute) saveState(initialActiveState.scrollY, null);
+    else saveImmediately();
+
     window.addEventListener('scroll', savePosition, { passive: true });
-    window.addEventListener('blur', saveImmediately);
-    window.addEventListener('focus', restorePosition);
-    window.addEventListener('pagehide', saveImmediately);
-    window.addEventListener('pageshow', restorePosition);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', restoreActiveRoute);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      saveImmediately();
+      window.history.scrollRestoration = previousScrollRestoration;
+      window.clearTimeout(saveTimer);
+      restorationTimers.forEach((timer) => window.clearTimeout(timer));
       window.removeEventListener('scroll', savePosition);
-      window.removeEventListener('blur', saveImmediately);
-      window.removeEventListener('focus', restorePosition);
-      window.removeEventListener('pagehide', saveImmediately);
-      window.removeEventListener('pageshow', restorePosition);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', restoreActiveRoute);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pageshow', handlePageShow);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [pathname]);
+  }, [hash, pathname, search, source]);
 
   return null;
 }
