@@ -3,5 +3,5 @@ Allow: /
 Disallow: /admin
 Disallow: /registro
 
-Sitemap: https://capaa-475.github.io/AM.VS_WEB/sitemap.xml
-Sitemap: https://capaa-475.github.io/AM.VS_WEB/sitemap.txt
+Sitemap: https://amvs-001.github.io/AM.VS_WEB/sitemap.xml
+Sitemap: https://amvs-001.github.io/AM.VS_WEB/sitemap.txt

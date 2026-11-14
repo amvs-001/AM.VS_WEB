@@ -32,7 +32,7 @@ jobs:
       - name: Build site
         run: npm run build:github-pages
         env:
-          VITE_SITE_URL: https://capaa-475.github.io/AM.VS_WEB
+          VITE_SITE_URL: https://amvs-001.github.io/AM.VS_WEB
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 

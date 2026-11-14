@@ -2,7 +2,7 @@
 
 Esta guía parte del estado actual del proyecto:
 
-- El repositorio es `Capaa-475/AM.VS_WEB`, en la rama `main`.
+- El repositorio es `amvs-001/AM.VS_WEB`, en la rama `main`.
 - La web ya tiene configuradas las lecturas públicas de Supabase.
 - Las credenciales locales están en `.env`; ese archivo no se sube a GitHub.
 - Ya ejecutaste `schema.sql` y `seed.sql`.

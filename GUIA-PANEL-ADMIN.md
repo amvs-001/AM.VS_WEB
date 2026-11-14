@@ -35,7 +35,7 @@ Las cuotas citadas son las documentadas a fecha de consulta; verifica las condic
 ### Opción recomendada: Cloudflare Pages
 
 1. Inicia sesión o crea una cuenta gratuita en Cloudflare.
-2. Ve a **Workers & Pages → Create application → Pages → Connect to Git**. Autoriza GitHub y selecciona `Capaa-475/AM.VS_WEB`.
+2. Ve a **Workers & Pages → Create application → Pages → Connect to Git**. Autoriza GitHub y selecciona `amvs-001/AM.VS_WEB`.
 3. Configura **Production branch** `main`, preset **Vite** (si aparece), **Build command** `npm run build` y **Build output directory** `dist`. Deja la raíz del proyecto vacía.
 4. En variables de entorno de **Production**, crea `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` con los valores del proyecto. No añadas `service_role`.
 5. Antes del primer deploy, decide el nombre definitivo del proyecto, por ejemplo `amvs-web`; la URL estable será `https://amvs-web.pages.dev`. El subdominio proporcionado por Pages es gratuito; un `.com`/`.es` propio normalmente hay que comprarlo.
@@ -48,21 +48,21 @@ Tras elegir `*.pages.dev` y guardarlo en Supabase, no hay que modificar las redi
 
 ### Preparación alternativa: GitHub Pages
 
-`https://pages.github.com/` es la página informativa del servicio, no la URL pública del proyecto. Para este repositorio, GitHub Pages usa `https://capaa-475.github.io/AM.VS_WEB/`. La configuración de compilación y publicación está en `.github/workflows/deploy-github-pages.yml`.
+`https://pages.github.com/` es la página informativa del servicio, no la URL pública del proyecto. El repositorio ahora pertenece a `amvs-001`, por lo que GitHub Pages usa `https://amvs-001.github.io/AM.VS_WEB/`. La configuración de compilación y publicación está en `.github/workflows/deploy-github-pages.yml`.
 
 Para activar la alternativa:
 
-1. En GitHub, abre `Capaa-475/AM.VS_WEB` → **Settings → Pages** y elige **GitHub Actions** como origen.
+1. En GitHub, abre `amvs-001/AM.VS_WEB` → **Settings → Pages** y elige **GitHub Actions** como origen.
 2. En **Settings → Secrets and variables → Actions**, crea los secretos `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` usando los valores públicos de configuración del proyecto Supabase. Nunca uses `service_role`.
-3. En **Supabase → Authentication → URL Configuration**, configura `https://capaa-475.github.io/AM.VS_WEB/` como **Site URL** y `https://capaa-475.github.io/AM.VS_WEB/admin` como **Redirect URL**.
-4. Comprueba en la pestaña **Actions** que termina correctamente el flujo **Deploy to GitHub Pages** y abre `https://capaa-475.github.io/AM.VS_WEB/`. La ruta del proyecto contiene `/AM.VS_WEB/`; no es solo un subdominio.
-5. En Search Console, crea una propiedad de tipo **Prefijo de URL** con `https://capaa-475.github.io/AM.VS_WEB/`, verifica con la etiqueta HTML publicada, y envía `sitemap.xml` desde **Sitemaps**.
+3. En **Supabase → Authentication → URL Configuration**, configura `https://amvs-001.github.io/AM.VS_WEB/` como **Site URL** y `https://amvs-001.github.io/AM.VS_WEB/admin` como **Redirect URL**.
+4. Comprueba en la pestaña **Actions** que termina correctamente el flujo **Deploy to GitHub Pages** y abre `https://amvs-001.github.io/AM.VS_WEB/`. La ruta del proyecto contiene `/AM.VS_WEB/`; no es solo un subdominio.
+5. En Search Console, crea una propiedad de tipo **Prefijo de URL** con `https://amvs-001.github.io/AM.VS_WEB/`, verifica con la etiqueta HTML publicada, y envía `sitemap.xml` desde **Sitemaps**.
 
 GitHub Pages tiene condiciones de uso para el hosting gratuito; esta web incluye contacto para contratar actuaciones. Revisa las condiciones actuales antes de usarlo como alojamiento definitivo. Cambiar de proveedor no garantiza por sí solo que Google rastree o indexe el sitemap.
 
 ### Alternativa: Vercel
 
-Si prefieres Vercel, importa `Capaa-475/AM.VS_WEB` y selecciona `main`; usa **Build Command** `npm run build`, **Output Directory** `dist` e **Install Command** `npm install`. En **Settings → Environment Variables** añade `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para Production. Conserva el nombre del proyecto para mantener la URL `*.vercel.app` y añade `https://<nombre>.vercel.app/admin` como Redirect URL en Supabase. El archivo `vercel.json` de este repositorio reescribe las rutas React a `index.html`. Antes de elegir Hobby, ten presente su requisito de uso personal/no comercial.
+Si prefieres Vercel, importa `amvs-001/AM.VS_WEB` y selecciona `main`; usa **Build Command** `npm run build`, **Output Directory** `dist` e **Install Command** `npm install`. En **Settings → Environment Variables** añade `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para Production. Conserva el nombre del proyecto para mantener la URL `*.vercel.app` y añade `https://<nombre>.vercel.app/admin` como Redirect URL en Supabase. El archivo `vercel.json` de este repositorio reescribe las rutas React a `index.html`. Antes de elegir Hobby, ten presente su requisito de uso personal/no comercial.
 
 ## 3. Preparar permisos y almacenamiento
 
@@ -175,11 +175,11 @@ Las noticias programadas quedan guardadas con estado publicado, pero las políti
 
 El sitio incluye metadatos de búsqueda, datos estructurados de la agrupación, `robots.txt` y un sitemap. Para solicitar que los buscadores lo rastreen:
 
-1. Comprueba que GitHub Pages haya publicado la última versión y que `https://capaa-475.github.io/AM.VS_WEB/robots.txt` y `https://capaa-475.github.io/AM.VS_WEB/sitemap.xml` abran correctamente.
-2. Entra en [Google Search Console](https://search.google.com/search-console/) con una cuenta Google y crea una propiedad de tipo **Prefijo de URL** con `https://capaa-475.github.io/AM.VS_WEB/`.
+1. Comprueba que GitHub Pages haya publicado la última versión y que `https://amvs-001.github.io/AM.VS_WEB/robots.txt` y `https://amvs-001.github.io/AM.VS_WEB/sitemap.xml` abran correctamente.
+2. Entra en [Google Search Console](https://search.google.com/search-console/) con una cuenta Google y crea una propiedad de tipo **Prefijo de URL** con `https://amvs-001.github.io/AM.VS_WEB/`.
 3. Verifica la propiedad con el método **Etiqueta HTML**: copia el token que Google proporciona y añádelo como `<meta name="google-site-verification" content="TOKEN" />` dentro de `<head>` en `index.html`. Sube ese cambio y pulsa **Verificar** en Search Console.
-4. En Search Console, abre **Sitemaps**, escribe `sitemap.xml` y envíalo. Usa **Inspección de URL** para `https://capaa-475.github.io/AM.VS_WEB/` y pulsa **Solicitar indexación** si Search Console lo permite.
-5. En [Bing Webmaster Tools](https://www.bing.com/webmasters/), importa la propiedad de Search Console o añade la misma URL y envía `https://capaa-475.github.io/AM.VS_WEB/sitemap.xml`.
+4. En Search Console, abre **Sitemaps**, escribe `sitemap.xml` y envíalo. Usa **Inspección de URL** para `https://amvs-001.github.io/AM.VS_WEB/` y pulsa **Solicitar indexación** si Search Console lo permite.
+5. En [Bing Webmaster Tools](https://www.bing.com/webmasters/), importa la propiedad de Search Console o añade la misma URL y envía `https://amvs-001.github.io/AM.VS_WEB/sitemap.xml`.
 6. Para ayudar a asociar la web con búsquedas como “AM Virgen de la Soledad Doña Mencía”, usa el mismo nombre en los perfiles oficiales, enlaza la web desde redes sociales y publica contenido propio con nombres claros para marchas, actuaciones e historia.
 
 La indexación no es instantánea ni garantiza una posición concreta. Puede tardar días o semanas; Search Console muestra errores de rastreo e indexación. Si en el futuro se compra un dominio propio, hay que actualizar la URL base en el sitemap, metadatos/canonical y las propiedades de buscadores.
