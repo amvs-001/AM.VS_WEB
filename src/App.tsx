@@ -1,13 +1,15 @@
-import { createContext, FormEvent, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, FormEvent, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { events, galleryAlbums, historyText, members, news, repertoire, siteSettings, socialLinks, sponsors, timeline } from './data/siteData';
+import { defaultSiteVisibility, events, galleryAlbums, historyText, members, news, repertoire, siteSettings, socialLinks, sponsors, timeline } from './data/siteData';
 import { fetchPublicData, isSupabaseConfigured, supabase, type PublicData } from './lib/supabase';
 import AdminContentEditor from './components/AdminContentEditor';
 import MediaEmbed from './components/MediaEmbed';
+import type { SiteVisibility } from './types';
 
 const initialPublicData: PublicData = {
   source: 'local',
   siteSettings,
+  visibility: defaultSiteVisibility,
   socialLinks,
   events,
   news,
@@ -297,13 +299,13 @@ function TabPositionRestoration() {
 
 const navItems = [
   { to: '/', label: 'Inicio' },
-  { to: '/historia', label: 'Historia' },
-  { to: '/repertorio', label: 'Repertorio' },
-  { to: '/actuaciones', label: 'Actuaciones' },
-  { to: '/galeria', label: 'Galería' },
-  { to: '/componentes', label: 'Componentes' },
-  { to: '/patrocinadores', label: 'Patrocinadores' },
-  { to: '/contacto', label: 'Contacto' },
+  { to: '/historia', label: 'Historia', visibilityKey: 'history' as const },
+  { to: '/repertorio', label: 'Repertorio', visibilityKey: 'repertoire' as const },
+  { to: '/actuaciones', label: 'Actuaciones', visibilityKey: 'events' as const },
+  { to: '/galeria', label: 'Galería', visibilityKey: 'gallery' as const },
+  { to: '/componentes', label: 'Componentes', visibilityKey: 'members' as const },
+  { to: '/patrocinadores', label: 'Patrocinadores', visibilityKey: 'sponsors' as const },
+  { to: '/contacto', label: 'Contacto', visibilityKey: 'contact' as const },
   { to: '/admin', label: 'Acceso' },
 ];
 
@@ -374,6 +376,7 @@ function App() {
 
           <nav className={`site-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Menú principal">
             {navItems.map((item) => (
+              item.visibilityKey && !publicData.visibility[item.visibilityKey] ? null :
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -392,14 +395,14 @@ function App() {
         {connectionError ? <p className="connection-banner error-text" role="alert">{connectionError} Se mantienen los datos locales de respaldo.</p> : null}
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/historia" element={<HistoryPage />} />
-          <Route path="/repertorio" element={<RepertoirePage />} />
-          <Route path="/repertorio/:slug" element={<RepertoireDetailPage />} />
-          <Route path="/actuaciones" element={<EventsPage />} />
-          <Route path="/galeria" element={<GalleryPage />} />
-          <Route path="/componentes" element={<MembersPage />} />
-          <Route path="/patrocinadores" element={<SponsorsPage />} />
-          <Route path="/contacto" element={<ContactPage />} />
+          <Route path="/historia" element={<VisiblePage page="history"><HistoryPage /></VisiblePage>} />
+          <Route path="/repertorio" element={<VisiblePage page="repertoire"><RepertoirePage /></VisiblePage>} />
+          <Route path="/repertorio/:slug" element={<VisiblePage page="repertoire"><RepertoireDetailPage /></VisiblePage>} />
+          <Route path="/actuaciones" element={<VisiblePage page="events"><EventsPage /></VisiblePage>} />
+          <Route path="/galeria" element={<VisiblePage page="gallery"><GalleryPage /></VisiblePage>} />
+          <Route path="/componentes" element={<VisiblePage page="members"><MembersPage /></VisiblePage>} />
+          <Route path="/patrocinadores" element={<VisiblePage page="sponsors"><SponsorsPage /></VisiblePage>} />
+          <Route path="/contacto" element={<VisiblePage page="contact"><ContactPage /></VisiblePage>} />
           <Route path="/admin" element={<AdminPage onPublished={refreshPublicData} />} />
           <Route path="/registro" element={<SignupPage />} />
           <Route path="*" element={<NotFoundPage />} />
@@ -441,7 +444,7 @@ function App() {
 }
 
 function HomePage() {
-  const { siteSettings: settings, news: publishedNews, events: publishedEvents } = usePublicData();
+  const { siteSettings: settings, news: publishedNews, events: publishedEvents, visibility } = usePublicData();
   const featuredEvent = publishedEvents[0];
   const facts = [
     { label: 'Año de fundación', value: String(settings.foundationYear) },
@@ -460,14 +463,12 @@ function HomePage() {
             <p>
               {settings.homeIntro}
             </p>
-            <div className="hero-actions">
-              <Link to="/historia" className="button primary">
-                Nuestra historia
-              </Link>
-              <Link to="/contacto" className="button secondary">
-                Solicitar contratación
-              </Link>
-            </div>
+            {visibility.history || visibility.contact ? (
+              <div className="hero-actions">
+                {visibility.history ? <Link to="/historia" className="button primary">Nuestra historia</Link> : null}
+                {visibility.contact ? <Link to="/contacto" className="button secondary">Solicitar contratación</Link> : null}
+              </div>
+            ) : null}
           </div>
           <div className="hero-panel">
             <img src={settings.logoUrl || `${import.meta.env.BASE_URL}escudoAM.png`} alt="Escudo de la Agrupación Musical Virgen de la Soledad" />
@@ -510,7 +511,7 @@ function HomePage() {
         </div>
       </section>
 
-      <section className="section">
+      {visibility.events ? <section className="section">
         <div className="container">
           <div className="section-heading split">
             <div>
@@ -531,7 +532,7 @@ function HomePage() {
             </div>
           ) : <div className="empty-state"><p>No hay actuaciones publicadas por el momento.</p></div>}
         </div>
-      </section>
+      </section> : null}
 
       <section className="section alt">
         <div className="container">
@@ -589,8 +590,16 @@ function HistoryPage() {
   );
 }
 
+function VisiblePage({ page, children }: { page: keyof SiteVisibility; children: ReactNode }) {
+  const { visibility } = usePublicData();
+  return visibility[page] ? children : <NotFoundPage />;
+}
+
 function RepertoirePage() {
-  const { repertoire: repertoireItems } = usePublicData();
+  const { repertoire: allRepertoireItems, visibility } = usePublicData();
+  const repertoireItems = allRepertoireItems.filter((item) =>
+    visibility.repertoireMarches || item.category.toLowerCase() !== 'marcha',
+  );
 
   return (
     <div className="container section-page">
@@ -621,10 +630,11 @@ function RepertoirePage() {
 
 function RepertoireDetailPage() {
   const { slug } = useParams();
-  const { repertoire: repertoireItems } = usePublicData();
+  const { repertoire: repertoireItems, visibility } = usePublicData();
   const item = repertoireItems.find((entry) => repertoireSlug(entry.title) === slug);
 
   if (!item) return <NotFoundPage />;
+  if (!visibility.repertoireMarches && item.category.toLowerCase() === 'marcha') return <NotFoundPage />;
   const media = [
     { url: item.videoUrl, label: 'Vídeo' },
     { url: item.audioUrl, label: 'Audio' },
@@ -1082,11 +1092,104 @@ function AdminPage({ onPublished }: { onPublished: () => void }) {
         role={profile.rol}
         onPublished={onPublished}
       />
+      {['Administrador', 'Superadministrador'].includes(profile.rol) ? (
+        <VisibilitySettings visibility={publicData.visibility} onSaved={onPublished} />
+      ) : null}
 
       <div className="admin-actions">
         <button type="button" className="button secondary" onClick={() => { void supabase?.auth.signOut(); }}>Cerrar sesión</button>
       </div>
     </div>
+  );
+}
+
+const visibilityOptions: { key: keyof SiteVisibility; label: string }[] = [
+  { key: 'history', label: 'Historia' },
+  { key: 'repertoire', label: 'Repertorio (página completa)' },
+  { key: 'repertoireMarches', label: 'Marchas procesionales (apartado de repertorio)' },
+  { key: 'events', label: 'Actuaciones' },
+  { key: 'gallery', label: 'Galería' },
+  { key: 'members', label: 'Componentes' },
+  { key: 'sponsors', label: 'Patrocinadores' },
+  { key: 'contact', label: 'Contacto' },
+];
+
+function VisibilitySettings({
+  visibility,
+  onSaved,
+}: {
+  visibility: SiteVisibility;
+  onSaved: () => void;
+}) {
+  const [draft, setDraft] = useState(visibility);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => setDraft(visibility), [visibility]);
+
+  async function saveVisibility(event: FormEvent) {
+    event.preventDefault();
+    if (!supabase) {
+      setError('No se puede guardar la visibilidad porque Supabase no está configurado.');
+      return;
+    }
+
+    setIsSaving(true);
+    setError('');
+    setMessage('');
+    const settingsKeys: Record<keyof SiteVisibility, string> = {
+      history: 'visibility_history',
+      repertoire: 'visibility_repertoire',
+      repertoireMarches: 'visibility_repertoire_marches',
+      events: 'visibility_events',
+      gallery: 'visibility_gallery',
+      members: 'visibility_members',
+      sponsors: 'visibility_sponsors',
+      contact: 'visibility_contact',
+    };
+    const { error: saveError } = await supabase.from('site_settings').upsert(
+      visibilityOptions.map(({ key }) => ({
+        clave: settingsKeys[key],
+        valor: String(draft[key]),
+      })),
+      { onConflict: 'clave' },
+    );
+    if (saveError) {
+      setError(`No se pudo guardar la visibilidad: ${saveError.message}`);
+      setIsSaving(false);
+      return;
+    }
+
+    setMessage('Visibilidad guardada correctamente.');
+    onSaved();
+    setIsSaving(false);
+  }
+
+  return (
+    <section className="visibility-settings">
+      <h2>Visibilidad de páginas y apartados</h2>
+      <p>Desmarca una opción para ocultarla del menú y bloquear su acceso público.</p>
+      <form onSubmit={saveVisibility}>
+        <div className="visibility-options">
+          {visibilityOptions.map(({ key, label }) => (
+            <label key={key} className="visibility-option">
+              <input
+                type="checkbox"
+                checked={draft[key]}
+                onChange={(event) => setDraft((current) => ({ ...current, [key]: event.target.checked }))}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+        {error ? <p className="error-text" role="alert">{error}</p> : null}
+        {message ? <p role="status">{message}</p> : null}
+        <button type="submit" className="button primary" disabled={isSaving}>
+          {isSaving ? 'Guardando…' : 'Guardar visibilidad'}
+        </button>
+      </form>
+    </section>
   );
 }
 

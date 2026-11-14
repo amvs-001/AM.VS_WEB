@@ -18,6 +18,17 @@ export type SiteSettings = {
   logoUrl?: string;
 };
 
+export type SiteVisibility = {
+  history: boolean;
+  repertoire: boolean;
+  repertoireMarches: boolean;
+  events: boolean;
+  gallery: boolean;
+  members: boolean;
+  sponsors: boolean;
+  contact: boolean;
+};
+
 export type EventStatus = 'celebrada' | 'proxima' | 'cancelada';
 
 export type EventItem = {

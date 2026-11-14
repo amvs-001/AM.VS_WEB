@@ -6,6 +6,7 @@ import {
   news as fallbackNews,
   repertoire as fallbackRepertoire,
   siteSettings as fallbackSettings,
+  defaultSiteVisibility,
   socialLinks,
   sponsors as fallbackSponsors,
   timeline as fallbackTimeline,
@@ -18,6 +19,7 @@ import type {
   NewsItem,
   RepertoireItem,
   SiteSettings,
+  SiteVisibility,
   SocialLink,
   SponsorItem,
   TimelineItem,
@@ -177,6 +179,7 @@ export async function fetchPublicData() {
     return {
       source: 'local' as const,
       siteSettings: fallbackSettings,
+      visibility: defaultSiteVisibility,
       socialLinks,
       events: fallbackEvents,
       news: fallbackNews,
@@ -269,10 +272,25 @@ export async function fetchPublicData() {
     history: settings.get('site_history') || fallbackSettings.history,
     logoUrl: settings.get('site_logo_url') || fallbackSettings.logoUrl,
   };
+  const isVisible = (key: string, defaultValue: boolean) => {
+    const value = settings.get(key);
+    return value === undefined ? defaultValue : value !== 'false';
+  };
+  const visibility: SiteVisibility = {
+    history: isVisible('visibility_history', defaultSiteVisibility.history),
+    repertoire: isVisible('visibility_repertoire', defaultSiteVisibility.repertoire),
+    repertoireMarches: isVisible('visibility_repertoire_marches', defaultSiteVisibility.repertoireMarches),
+    events: isVisible('visibility_events', defaultSiteVisibility.events),
+    gallery: isVisible('visibility_gallery', defaultSiteVisibility.gallery),
+    members: isVisible('visibility_members', defaultSiteVisibility.members),
+    sponsors: isVisible('visibility_sponsors', defaultSiteVisibility.sponsors),
+    contact: isVisible('visibility_contact', defaultSiteVisibility.contact),
+  };
 
   return {
     source: 'supabase' as const,
     siteSettings,
+    visibility,
     socialLinks: publicSocialLinks,
     events: ((eventsResponse.data ?? []) as Array<Record<string, unknown>>).map(mapEvent),
     news: ((newsResponse.data ?? []) as Array<Record<string, unknown>>).map(mapNews),

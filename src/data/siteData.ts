@@ -1,4 +1,15 @@
-import type { EventItem, GalleryAlbum, MemberItem, NewsItem, RepertoireItem, SiteSettings, SocialLink, SponsorItem, TimelineItem } from '../types';
+import type { EventItem, GalleryAlbum, MemberItem, NewsItem, RepertoireItem, SiteSettings, SiteVisibility, SocialLink, SponsorItem, TimelineItem } from '../types';
+
+export const defaultSiteVisibility: SiteVisibility = {
+  history: true,
+  repertoire: true,
+  repertoireMarches: true,
+  events: true,
+  gallery: true,
+  members: true,
+  sponsors: false,
+  contact: true,
+};
 
 export const siteSettings: SiteSettings = {
   name: 'Agrupación Musical Virgen de la Soledad de Doña Mencía',

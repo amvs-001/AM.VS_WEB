@@ -299,6 +299,20 @@ begin
 end;
 $$;
 
+drop policy if exists "Admins manage page visibility" on public.site_settings;
+create policy "Admins manage page visibility"
+  on public.site_settings
+  for all
+  to authenticated
+  using (
+    (select public.has_admin_role())
+    and left(clave, 11) = 'visibility_'
+  )
+  with check (
+    (select public.has_admin_role())
+    and left(clave, 11) = 'visibility_'
+  );
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'site-media',
