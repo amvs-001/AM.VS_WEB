@@ -87,7 +87,8 @@ function RouteMetadata() {
           title: `${siteSettings.siglas} | ${siteSettings.name}`,
           description: `Web oficial de ${siteSettings.name}, agrupación musical de Doña Mencía.`,
         };
-    const canonicalUrl = `https://am-vs-web.pages.dev${pathname}`;
+    const siteUrl = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/+$/, '');
+    const canonicalUrl = `${siteUrl}${pathname}`;
     document.title = page.title;
 
     const updateMeta = (attribute: string, key: string, content: string) => {
@@ -261,7 +262,7 @@ function App() {
       <header className="site-header">
         <div className="container header-inner">
           <Link to="/" className="brand" aria-label="Inicio de la Agrupación Musical Virgen de la Soledad">
-            <img src={publicData.siteSettings.logoUrl || '/escudoAM.png'} alt="Escudo de la Agrupación Musical Virgen de la Soledad" className="brand-logo" />
+            <img src={publicData.siteSettings.logoUrl || `${import.meta.env.BASE_URL}escudoAM.png`} alt="Escudo de la Agrupación Musical Virgen de la Soledad" className="brand-logo" />
             <div>
               <span className="brand-name">AM VS</span>
               <small>{publicData.siteSettings.name}</small>
@@ -376,7 +377,7 @@ function HomePage() {
             </div>
           </div>
           <div className="hero-panel">
-            <img src={settings.logoUrl || '/escudoAM.png'} alt="Escudo de la Agrupación Musical Virgen de la Soledad" />
+            <img src={settings.logoUrl || `${import.meta.env.BASE_URL}escudoAM.png`} alt="Escudo de la Agrupación Musical Virgen de la Soledad" />
           </div>
         </div>
       </section>
@@ -894,7 +895,7 @@ function AdminPage({ onPublished }: { onPublished: () => void }) {
     setError('');
     const { error: loginError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/admin` },
+      options: { redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}admin` },
     });
     if (loginError) {
       setError(loginError.message);
@@ -1037,7 +1038,7 @@ function SignupPage() {
       email: formData.email,
       password: formData.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/admin`,
+        emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}admin`,
         data: {
           first_name: formData.firstName.trim(),
           surname: formData.surname.trim(),

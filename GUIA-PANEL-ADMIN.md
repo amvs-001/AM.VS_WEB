@@ -46,6 +46,20 @@ Las cuotas citadas son las documentadas a fecha de consulta; verifica las condic
 
 Tras elegir `*.pages.dev` y guardarlo en Supabase, no hay que modificar las redirecciones de Google en cada commit. La callback configurada en Google Cloud debe seguir siendo la de Supabase, por ejemplo `https://<project-ref>.supabase.co/auth/v1/callback`; Google devuelve a Supabase y Supabase redirige al sitio permitido.
 
+### Preparación alternativa: GitHub Pages
+
+`https://pages.github.com/` es la página informativa del servicio, no la URL pública del proyecto. Para este repositorio, GitHub Pages usa `https://capaa-475.github.io/AM.VS_WEB/`. La configuración de compilación y publicación está preparada en `.github/workflows/deploy-github-pages.yml`; Cloudflare sigue siendo el despliegue actual hasta que GitHub Pages se active y se compruebe la nueva URL.
+
+Para activar la alternativa:
+
+1. En GitHub, abre `Capaa-475/AM.VS_WEB` → **Settings → Pages** y elige **GitHub Actions** como origen.
+2. En **Settings → Secrets and variables → Actions**, crea los secretos `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` usando los valores públicos de configuración del proyecto Supabase. Nunca uses `service_role`.
+3. En **Supabase → Authentication → URL Configuration**, añade `https://capaa-475.github.io/AM.VS_WEB/` como **Site URL** y `https://capaa-475.github.io/AM.VS_WEB/admin` como **Redirect URL**. Conserva temporalmente las URLs de Cloudflare para que siga funcionando durante la transición.
+4. Comprueba en la pestaña **Actions** que termina correctamente el flujo **Deploy to GitHub Pages** y abre `https://capaa-475.github.io/AM.VS_WEB/`. La ruta del proyecto contiene `/AM.VS_WEB/`; no es solo un subdominio.
+5. Si la nueva web funciona, verifica esa URL como una propiedad nueva en Search Console y envía `sitemap.xml`. No elimines Cloudflare hasta confirmar el acceso, las imágenes y el inicio de sesión.
+
+GitHub Pages tiene condiciones de uso para el hosting gratuito; esta web incluye contacto para contratar actuaciones. Revisa las condiciones actuales antes de usarlo como alojamiento definitivo. Cambiar de proveedor no garantiza por sí solo que Google rastree o indexe el sitemap.
+
 ### Alternativa: Vercel
 
 Si prefieres Vercel, importa `Capaa-475/AM.VS_WEB` y selecciona `main`; usa **Build Command** `npm run build`, **Output Directory** `dist` e **Install Command** `npm install`. En **Settings → Environment Variables** añade `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para Production. Conserva el nombre del proyecto para mantener la URL `*.vercel.app` y añade `https://<nombre>.vercel.app/admin` como Redirect URL en Supabase. El archivo `vercel.json` de este repositorio reescribe las rutas React a `index.html`. Antes de elegir Hobby, ten presente su requisito de uso personal/no comercial.
