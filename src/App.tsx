@@ -2,6 +2,7 @@ import { createContext, FormEvent, type ReactNode, useContext, useEffect, useMem
 import { Link, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { defaultSiteVisibility, events, galleryAlbums, historyText, members, news, repertoire, siteSettings, socialLinks, sponsors, timeline } from './data/siteData';
 import { fetchPublicData, isSupabaseConfigured, supabase, type PublicData } from './lib/supabase';
+import AdminContactRequests from './components/AdminContactRequests';
 import AdminContentEditor from './components/AdminContentEditor';
 import AdminPageManager from './components/AdminPageManager';
 import { CookiePolicyPage, LegalNoticePage, PrivacyPolicyPage } from './components/LegalPages';
@@ -888,6 +889,10 @@ function ContactPage() {
   const { siteSettings: settings } = usePublicData();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submissionError, setSubmissionError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [honeypot, setHoneypot] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     entity: '',
@@ -898,6 +903,16 @@ function ContactPage() {
     eventType: '',
     message: '',
   });
+
+  const updateField = (field: keyof typeof formData, value: string) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+    setIsSubmitted(false);
+    setErrors((current) => {
+      const remaining = { ...current };
+      delete remaining[field];
+      return remaining;
+    });
+  };
 
   const validate = () => {
     const nextErrors: Record<string, string> = {};
@@ -910,17 +925,59 @@ function ContactPage() {
     if (!formData.eventDate) nextErrors.eventDate = 'La fecha aproximada es obligatoria.';
     if (!formData.eventType.trim()) nextErrors.eventType = 'Selecciona el tipo de evento.';
     if (formData.message.trim().length < 10) nextErrors.message = 'El mensaje debe tener al menos 10 caracteres.';
+    if (!privacyAccepted) nextErrors.privacy = 'Debes aceptar la información de privacidad para enviar la solicitud.';
 
     return nextErrors;
   };
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const nextErrors = validate();
     setErrors(nextErrors);
+    setSubmissionError('');
+    setIsSubmitted(false);
     if (Object.keys(nextErrors).length > 0) return;
+    if (honeypot.trim()) return;
+    if (!supabase) {
+      setSubmissionError('No se puede enviar la solicitud porque Supabase no está configurado.');
+      return;
+    }
 
-    setIsSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      const { error: insertError } = await supabase.from('contact_requests').insert({
+        nombre: formData.name.trim(),
+        entidad: formData.entity.trim(),
+        email: formData.email.trim(),
+        telefono: formData.phone.trim(),
+        localidad: formData.locality.trim(),
+        fecha_evento: formData.eventDate,
+        tipo_evento: formData.eventType.trim(),
+        mensaje: formData.message.trim(),
+      });
+      if (insertError) {
+        setSubmissionError(`No se pudo enviar la solicitud: ${insertError.message}`);
+        return;
+      }
+
+      setIsSubmitted(true);
+      setFormData({
+        name: '',
+        entity: '',
+        email: '',
+        phone: '',
+        locality: '',
+        eventDate: '',
+        eventType: '',
+        message: '',
+      });
+      setPrivacyAccepted(false);
+    } catch (error) {
+      console.error('Error al enviar la solicitud de contratación:', error);
+      setSubmissionError('No se pudo conectar para enviar la solicitud. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -935,57 +992,90 @@ function ContactPage() {
       </div>
 
       <form className="contact-form" onSubmit={handleSubmit} noValidate>
+        <p>La solicitud se enviará de forma privada a la agrupación y podrá consultarla su equipo de Administración en esta web.</p>
+        <div className="contact-honeypot" aria-hidden="true">
+          <label>
+            Deja este campo vacío
+            <input
+              name="company_website"
+              autoComplete="off"
+              tabIndex={-1}
+              value={honeypot}
+              onChange={(event) => setHoneypot(event.target.value)}
+            />
+          </label>
+        </div>
         <div className="field-grid">
           <label>
             Nombre
-            <input value={formData.name} onChange={(event) => setFormData((current) => ({ ...current, name: event.target.value }))} />
+            <input required maxLength={120} value={formData.name} onChange={(event) => updateField('name', event.target.value)} />
             {errors.name ? <small>{errors.name}</small> : null}
           </label>
           <label>
             Entidad o cofradía
-            <input value={formData.entity} onChange={(event) => setFormData((current) => ({ ...current, entity: event.target.value }))} />
+            <input required maxLength={160} value={formData.entity} onChange={(event) => updateField('entity', event.target.value)} />
             {errors.entity ? <small>{errors.entity}</small> : null}
           </label>
           <label>
             Correo electrónico
-            <input value={formData.email} onChange={(event) => setFormData((current) => ({ ...current, email: event.target.value }))} />
+            <input type="email" required maxLength={254} autoComplete="email" value={formData.email} onChange={(event) => updateField('email', event.target.value)} />
             {errors.email ? <small>{errors.email}</small> : null}
           </label>
           <label>
             Teléfono
-            <input value={formData.phone} onChange={(event) => setFormData((current) => ({ ...current, phone: event.target.value }))} />
+            <input type="tel" required maxLength={40} autoComplete="tel" value={formData.phone} onChange={(event) => updateField('phone', event.target.value)} />
             {errors.phone ? <small>{errors.phone}</small> : null}
           </label>
           <label>
             Localidad
-            <input value={formData.locality} onChange={(event) => setFormData((current) => ({ ...current, locality: event.target.value }))} />
+            <input required maxLength={120} value={formData.locality} onChange={(event) => updateField('locality', event.target.value)} />
             {errors.locality ? <small>{errors.locality}</small> : null}
           </label>
           <label>
             Fecha aproximada
-            <input type="date" value={formData.eventDate} onChange={(event) => setFormData((current) => ({ ...current, eventDate: event.target.value }))} />
+            <input type="date" required value={formData.eventDate} onChange={(event) => updateField('eventDate', event.target.value)} />
             {errors.eventDate ? <small>{errors.eventDate}</small> : null}
           </label>
           <label className="full-width">
             Tipo de evento
-            <input value={formData.eventType} onChange={(event) => setFormData((current) => ({ ...current, eventType: event.target.value }))} />
+            <input required maxLength={120} value={formData.eventType} onChange={(event) => updateField('eventType', event.target.value)} />
             {errors.eventType ? <small>{errors.eventType}</small> : null}
           </label>
           <label className="full-width">
             Mensaje
-            <textarea value={formData.message} onChange={(event) => setFormData((current) => ({ ...current, message: event.target.value }))} rows={5} />
+            <textarea required maxLength={5000} value={formData.message} onChange={(event) => updateField('message', event.target.value)} rows={5} />
             {errors.message ? <small>{errors.message}</small> : null}
           </label>
+          <label className="privacy-toggle full-width">
+            <input
+              type="checkbox"
+              required
+              checked={privacyAccepted}
+              onChange={(event) => {
+                setPrivacyAccepted(event.target.checked);
+                setErrors((current) => {
+                  const remaining = { ...current };
+                  delete remaining.privacy;
+                  return remaining;
+                });
+              }}
+            />
+            <span>He leído la <Link to="/privacidad">Política de privacidad</Link> y autorizo el tratamiento de estos datos para responder a esta solicitud.</span>
+          </label>
+          {errors.privacy ? <p className="error-text full-width" role="alert">{errors.privacy}</p> : null}
         </div>
 
         {isSubmitted ? (
           <p className="success-message" role="status">
-            Este formulario aún no envía ni guarda solicitudes. Tus datos permanecen en esta página.
-            Para contactar con la agrupación, llama al <a href={`tel:${settings.publicPhone.replace(/[^\d+]/g, '')}`}>{settings.publicPhone}</a>.
+            Solicitud enviada y guardada. La agrupación podrá revisarla desde el panel de Administración; no se envía un correo automático.
           </p>
         ) : null}
+        {submissionError ? <p className="error-text" role="alert">{submissionError} También puedes llamar al <a href={`tel:${settings.publicPhone.replace(/[^\d+]/g, '')}`}>{settings.publicPhone}</a>.</p> : null}
 
-        <button type="submit" className="button primary submit-button">Enviar solicitud</button>
+        <button type="submit" className="button primary submit-button" disabled={isSubmitting || !isSupabaseConfigured}>
+          {isSubmitting ? 'Enviando…' : 'Enviar solicitud'}
+        </button>
+        {!isSupabaseConfigured ? <p className="error-text">El envío no está disponible porque falta la configuración de Supabase.</p> : null}
       </form>
     </div>
   );
@@ -1173,6 +1263,7 @@ function AdminPage({ onPublished }: { onPublished: () => void }) {
         </div>
       </div>
 
+      {['Administrador', 'Superadministrador'].includes(profile.rol) ? <AdminContactRequests /> : null}
       {['Administrador', 'Superadministrador'].includes(profile.rol) ? (
         <AdminPageManager visibility={publicData.visibility} onPublished={onPublished} />
       ) : (

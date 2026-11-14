@@ -769,13 +769,84 @@ small {
 }
 
 .admin-page-manager,
-.admin-permission-notice {
+.admin-permission-notice,
+.contact-requests {
   margin-top: 1.5rem;
   padding: 1.25rem;
   border: 1px solid rgba(12, 31, 26, 0.1);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.74);
   box-shadow: var(--shadow);
+}
+
+.contact-requests-heading,
+.contact-request-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.contact-requests-heading h2,
+.contact-requests-heading p {
+  margin-top: 0;
+}
+
+.contact-requests-heading > span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  background: rgba(201, 155, 61, 0.18);
+  color: var(--forest-900);
+  font-weight: 700;
+}
+
+.contact-requests-list {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.contact-request {
+  padding: 1rem;
+  border: 1px solid rgba(12, 31, 26, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.contact-request-heading h3 {
+  margin: 0;
+  color: var(--forest-900);
+}
+
+.contact-request-heading > div > span,
+.contact-request-details {
+  color: var(--slate);
+  font-size: 0.9rem;
+}
+
+.contact-request-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-top: 0.8rem;
+}
+
+.contact-request-message {
+  margin: 0.9rem 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.contact-honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
 }
 
 .admin-page-manager-header,
@@ -1275,6 +1346,7 @@ small {
 :root[data-theme='dark'] .admin-page-manager,
 :root[data-theme='dark'] .admin-permission-notice,
 :root[data-theme='dark'] .editorial-panel,
+:root[data-theme='dark'] .contact-requests,
 :root[data-theme='dark'] .visibility-settings,
 :root[data-theme='dark'] .news-preview,
 :root[data-theme='dark'] .media-preview,
@@ -1300,6 +1372,11 @@ small {
   background: #202832;
   border-color: rgba(225, 233, 243, 0.14);
   color: var(--charcoal);
+}
+
+:root[data-theme='dark'] .contact-request {
+  background: #18212b;
+  border-color: rgba(225, 233, 243, 0.14);
 }
 
 :root[data-theme='dark'] input,
@@ -1400,7 +1477,9 @@ small {
   }
 
   .admin-page-manager-header,
-  .managed-page-row {
+  .managed-page-row,
+  .contact-request-heading,
+  .contact-requests-heading {
     align-items: flex-start;
     flex-direction: column;
   }

@@ -74,18 +74,20 @@ export function PrivacyPolicyPage({ settings }: { settings: SiteSettings }) {
             sobre reproductores externos se guardan en el almacenamiento local del navegador.
           </li>
           <li>
-            El formulario de contacto actual es una demostración local: no envía ni almacena la solicitud. No
-            introduzcas datos sensibles en él; para contactar se muestra el teléfono público.
+            Si envías una solicitud de contratación, se guardan nombre, entidad, correo, teléfono, localidad,
+            fecha y tipo del evento y el mensaje en Supabase para poder responderte. Solo Administración puede
+            consultar esas solicitudes desde el panel y no se envía un correo automático.
           </li>
         </ul>
       </section>
       <section>
         <h2>Base y conservación</h2>
         <p>
-          Los datos de cuenta se tratan para prestar la función de registro e iniciar sesión. Se conservan mientras
-          la cuenta permanezca activa y se eliminan cuando se solicita su baja, salvo los datos que deban conservarse
-          por una obligación legal. Los plazos concretos de copias de seguridad dependen del proveedor Supabase y
-          deben confirmarse en sus condiciones vigentes.
+          Los datos de cuenta se tratan para prestar la función de registro e iniciar sesión. Los datos de una
+          solicitud se usan para atender la petición y se eliminan desde Administración cuando dejan de ser
+          necesarios, salvo los datos que deban conservarse por una obligación legal. Los plazos concretos de
+          baja de cuentas y copias de seguridad dependen del responsable y de Supabase y deben confirmarse en sus
+          condiciones vigentes.
         </p>
       </section>
       <section>

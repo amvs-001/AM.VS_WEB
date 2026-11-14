@@ -83,6 +83,20 @@ create table if not exists public.custom_pages (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.contact_requests (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null,
+  entidad text,
+  email text not null,
+  telefono text not null,
+  localidad text,
+  fecha_evento date,
+  tipo_evento text,
+  mensaje text not null,
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'contactado', 'rechazado')),
+  created_at timestamptz not null default now()
+);
+
 create index if not exists idx_content_drafts_owner_updated
   on public.content_drafts (actualizado_por, updated_at desc);
 
@@ -142,12 +156,17 @@ grant execute on function public.has_admin_role() to authenticated;
 grant execute on function public.has_superadmin_role() to authenticated;
 grant select on public.profiles to authenticated;
 grant select, insert, update, delete on public.content_drafts to authenticated;
+revoke all on public.contact_requests from public, anon;
+grant insert (nombre, entidad, email, telefono, localidad, fecha_evento, tipo_evento, mensaje)
+  on public.contact_requests to anon;
+grant select, insert, update, delete on public.contact_requests to authenticated;
 grant select on public.news, public.events, public.repertoire, public.gallery_albums,
   public.gallery_items, public.members, public.sponsors, public.timeline, public.site_settings,
   public.custom_pages
   to anon, authenticated;
 
 alter table public.content_drafts enable row level security;
+alter table public.contact_requests enable row level security;
 
 drop policy if exists "Editors manage own content drafts" on public.content_drafts;
 create policy "Editors manage own content drafts"
@@ -270,6 +289,21 @@ create policy "Public read access to active sponsors"
 drop policy if exists "Public read access to visible custom pages" on public.custom_pages;
 create policy "Public read access to visible custom pages"
   on public.custom_pages for select to anon, authenticated using (visible = true);
+
+drop policy if exists "Public can insert contact requests" on public.contact_requests;
+create policy "Public can insert contact requests"
+  on public.contact_requests
+  for insert
+  to anon, authenticated
+  with check (true);
+
+drop policy if exists "Admins manage contact requests" on public.contact_requests;
+create policy "Admins manage contact requests"
+  on public.contact_requests
+  for all
+  to authenticated
+  using ((select public.has_admin_role()))
+  with check ((select public.has_admin_role()));
 
 drop policy if exists "Admins manage all content" on public.news;
 drop policy if exists "Admins manage events" on public.events;
