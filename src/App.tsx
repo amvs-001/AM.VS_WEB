@@ -1,14 +1,15 @@
-import { createContext, FormEvent, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, FormEvent, lazy, Suspense, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { defaultSiteVisibility, events, galleryAlbums, historyText, members, news, repertoire, siteSettings, socialLinks, sponsors, timeline } from './data/siteData';
 import { fetchPublicData, isSupabaseConfigured, supabase, type PublicData } from './lib/supabase';
-import AdminContactRequests from './components/AdminContactRequests';
-import AdminContentEditor from './components/AdminContentEditor';
-import AdminPageManager from './components/AdminPageManager';
 import { CookiePolicyPage, LegalNoticePage, PrivacyPolicyPage } from './components/LegalPages';
 import MediaEmbed from './components/MediaEmbed';
 import { useCookiePreferences } from './components/CookiePreferences';
 import type { SiteVisibility } from './types';
+
+const AdminContactRequests = lazy(() => import('./components/AdminContactRequests'));
+const AdminContentEditor = lazy(() => import('./components/AdminContentEditor'));
+const AdminPageManager = lazy(() => import('./components/AdminPageManager'));
 
 const initialPublicData: PublicData = {
   source: 'local',
@@ -471,7 +472,14 @@ function App() {
           <Route path="/privacidad" element={<PrivacyPolicyPage settings={publicData.siteSettings} />} />
           <Route path="/cookies" element={<CookiePolicyPage onOpenPreferences={openCookieSettings} />} />
           <Route path="/pagina/:slug" element={<CustomPageRoute />} />
-          <Route path="/admin" element={<AdminPage onPublished={refreshPublicData} />} />
+          <Route
+            path="/admin"
+            element={(
+              <Suspense fallback={<div className="container section-page"><p role="status">Cargando el panel de administraci?n?</p></div>}>
+                <AdminPage onPublished={refreshPublicData} />
+              </Suspense>
+            )}
+          />
           <Route path="/registro" element={<SignupPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
