@@ -1074,6 +1074,28 @@ small {
   gap: 1rem;
 }
 
+.admin-content-form,
+.admin-content-form .field-grid,
+.admin-content-form label {
+  min-width: 0;
+}
+
+.admin-content-form input:not([type='checkbox']):not([type='radio']),
+.admin-content-form textarea,
+.admin-content-form select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-content-form input[type='checkbox'],
+.admin-content-form input[type='radio'] {
+  align-self: flex-start;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+}
+
 .news-manager-heading {
   align-items: start;
 }
