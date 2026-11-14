@@ -39,7 +39,6 @@ jobs:
       - name: Prepare GitHub Pages files
         run: |
           cp dist/index.html dist/404.html
-          sed -i 's|https://am-vs-web.pages.dev|https://capaa-475.github.io/AM.VS_WEB|g' dist/robots.txt dist/sitemap.xml dist/sitemap.txt
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -48,15 +48,15 @@ Tras elegir `*.pages.dev` y guardarlo en Supabase, no hay que modificar las redi
 
 ### Preparación alternativa: GitHub Pages
 
-`https://pages.github.com/` es la página informativa del servicio, no la URL pública del proyecto. Para este repositorio, GitHub Pages usa `https://capaa-475.github.io/AM.VS_WEB/`. La configuración de compilación y publicación está preparada en `.github/workflows/deploy-github-pages.yml`; Cloudflare sigue siendo el despliegue actual hasta que GitHub Pages se active y se compruebe la nueva URL.
+`https://pages.github.com/` es la página informativa del servicio, no la URL pública del proyecto. Para este repositorio, GitHub Pages usa `https://capaa-475.github.io/AM.VS_WEB/`. La configuración de compilación y publicación está en `.github/workflows/deploy-github-pages.yml`.
 
 Para activar la alternativa:
 
 1. En GitHub, abre `Capaa-475/AM.VS_WEB` → **Settings → Pages** y elige **GitHub Actions** como origen.
 2. En **Settings → Secrets and variables → Actions**, crea los secretos `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` usando los valores públicos de configuración del proyecto Supabase. Nunca uses `service_role`.
-3. En **Supabase → Authentication → URL Configuration**, añade `https://capaa-475.github.io/AM.VS_WEB/` como **Site URL** y `https://capaa-475.github.io/AM.VS_WEB/admin` como **Redirect URL**. Conserva temporalmente las URLs de Cloudflare para que siga funcionando durante la transición.
+3. En **Supabase → Authentication → URL Configuration**, configura `https://capaa-475.github.io/AM.VS_WEB/` como **Site URL** y `https://capaa-475.github.io/AM.VS_WEB/admin` como **Redirect URL**.
 4. Comprueba en la pestaña **Actions** que termina correctamente el flujo **Deploy to GitHub Pages** y abre `https://capaa-475.github.io/AM.VS_WEB/`. La ruta del proyecto contiene `/AM.VS_WEB/`; no es solo un subdominio.
-5. Si la nueva web funciona, verifica esa URL como una propiedad nueva en Search Console y envía `sitemap.xml`. No elimines Cloudflare hasta confirmar el acceso, las imágenes y el inicio de sesión.
+5. En Search Console, crea una propiedad de tipo **Prefijo de URL** con `https://capaa-475.github.io/AM.VS_WEB/`, verifica con la etiqueta HTML publicada, y envía `sitemap.xml` desde **Sitemaps**.
 
 GitHub Pages tiene condiciones de uso para el hosting gratuito; esta web incluye contacto para contratar actuaciones. Revisa las condiciones actuales antes de usarlo como alojamiento definitivo. Cambiar de proveedor no garantiza por sí solo que Google rastree o indexe el sitemap.
 
@@ -175,11 +175,11 @@ Las noticias programadas quedan guardadas con estado publicado, pero las políti
 
 El sitio incluye metadatos de búsqueda, datos estructurados de la agrupación, `robots.txt` y un sitemap. Para solicitar que los buscadores lo rastreen:
 
-1. Comprueba que Cloudflare haya publicado la última versión y que `https://am-vs-web.pages.dev/robots.txt` y `https://am-vs-web.pages.dev/sitemap.xml` abran correctamente.
-2. Entra en [Google Search Console](https://search.google.com/search-console/) con una cuenta Google y crea una propiedad de tipo **Prefijo de URL** con `https://am-vs-web.pages.dev/`.
+1. Comprueba que GitHub Pages haya publicado la última versión y que `https://capaa-475.github.io/AM.VS_WEB/robots.txt` y `https://capaa-475.github.io/AM.VS_WEB/sitemap.xml` abran correctamente.
+2. Entra en [Google Search Console](https://search.google.com/search-console/) con una cuenta Google y crea una propiedad de tipo **Prefijo de URL** con `https://capaa-475.github.io/AM.VS_WEB/`.
 3. Verifica la propiedad con el método **Etiqueta HTML**: copia el token que Google proporciona y añádelo como `<meta name="google-site-verification" content="TOKEN" />` dentro de `<head>` en `index.html`. Sube ese cambio y pulsa **Verificar** en Search Console.
-4. En Search Console, abre **Sitemaps**, escribe `sitemap.xml` y envíalo. Usa **Inspección de URL** para la página principal, `/repertorio` y páginas de marchas y pulsa **Solicitar indexación**.
-5. En [Bing Webmaster Tools](https://www.bing.com/webmasters/), importa la propiedad de Search Console o añade la misma URL y envía `https://am-vs-web.pages.dev/sitemap.xml`.
+4. En Search Console, abre **Sitemaps**, escribe `sitemap.xml` y envíalo. Usa **Inspección de URL** para `https://capaa-475.github.io/AM.VS_WEB/` y pulsa **Solicitar indexación** si Search Console lo permite.
+5. En [Bing Webmaster Tools](https://www.bing.com/webmasters/), importa la propiedad de Search Console o añade la misma URL y envía `https://capaa-475.github.io/AM.VS_WEB/sitemap.xml`.
 6. Para ayudar a asociar la web con búsquedas como “AM Virgen de la Soledad Doña Mencía”, usa el mismo nombre en los perfiles oficiales, enlaza la web desde redes sociales y publica contenido propio con nombres claros para marchas, actuaciones e historia.
 
 La indexación no es instantánea ni garantiza una posición concreta. Puede tardar días o semanas; Search Console muestra errores de rastreo e indexación. Si en el futuro se compra un dominio propio, hay que actualizar la URL base en el sitemap, metadatos/canonical y las propiedades de buscadores.
