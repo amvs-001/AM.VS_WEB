@@ -60,6 +60,10 @@ Para activar la alternativa:
 
 GitHub Pages tiene condiciones de uso para el hosting gratuito; esta web incluye contacto para contratar actuaciones. Revisa las condiciones actuales antes de usarlo como alojamiento definitivo. Cambiar de proveedor no garantiza por sí solo que Google rastree o indexe el sitemap.
 
+### Instalar la web desde Chrome (PWA)
+
+La web es una aplicación web progresiva instalable; no se genera ningún APK. En Chrome de escritorio, abre la web HTTPS y usa el icono **Instalar** de la barra de direcciones o **⋮ → Guardar y compartir → Instalar página como aplicación**. En Android, abre la web en Chrome y selecciona **⋮ → Instalar aplicación** o **Añadir a pantalla de inicio**. La instalación requiere conexión la primera vez; el service worker guarda la página y recursos básicos para abrirla después sin conexión. Los datos de Supabase y los vídeos externos sí requieren Internet.
+
 ### Alternativa: Vercel
 
 Si prefieres Vercel, importa `amvs-001/AM.VS_WEB` y selecciona `main`; usa **Build Command** `npm run build`, **Output Directory** `dist` e **Install Command** `npm install`. En **Settings → Environment Variables** añade `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para Production. Conserva el nombre del proyecto para mantener la URL `*.vercel.app` y añade `https://<nombre>.vercel.app/admin` como Redirect URL en Supabase. El archivo `vercel.json` de este repositorio reescribe las rutas React a `index.html`. Antes de elegir Hobby, ten presente su requisito de uso personal/no comercial.
