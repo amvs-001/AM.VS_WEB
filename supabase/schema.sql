@@ -128,6 +128,17 @@ create table if not exists site_settings (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists custom_pages (
+  id uuid primary key default gen_random_uuid(),
+  titulo text not null,
+  slug text not null unique,
+  subtitulo text not null default '',
+  contenido text not null,
+  visible boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists idx_events_estado on events(estado);
 create index if not exists idx_events_fecha on events(fecha);
 create index if not exists idx_news_estado on news(estado);

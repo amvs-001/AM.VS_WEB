@@ -29,6 +29,15 @@ export type SiteVisibility = {
   contact: boolean;
 };
 
+export type CustomPageItem = {
+  id: string;
+  title: string;
+  slug: string;
+  subtitle: string;
+  content: string;
+  visible: boolean;
+};
+
 export type EventStatus = 'celebrada' | 'proxima' | 'cancelada';
 
 export type EventItem = {

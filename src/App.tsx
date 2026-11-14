@@ -3,13 +3,17 @@ import { Link, NavLink, Route, Routes, useLocation, useNavigate, useParams } fro
 import { defaultSiteVisibility, events, galleryAlbums, historyText, members, news, repertoire, siteSettings, socialLinks, sponsors, timeline } from './data/siteData';
 import { fetchPublicData, isSupabaseConfigured, supabase, type PublicData } from './lib/supabase';
 import AdminContentEditor from './components/AdminContentEditor';
+import AdminPageManager from './components/AdminPageManager';
+import { CookiePolicyPage, LegalNoticePage, PrivacyPolicyPage } from './components/LegalPages';
 import MediaEmbed from './components/MediaEmbed';
+import { useCookiePreferences } from './components/CookiePreferences';
 import type { SiteVisibility } from './types';
 
 const initialPublicData: PublicData = {
   source: 'local',
   siteSettings,
   visibility: defaultSiteVisibility,
+  customPages: [],
   socialLinks,
   events,
   news,
@@ -39,12 +43,24 @@ function repertoirePath(item: { title: string }): string {
   return `/repertorio/${repertoireSlug(item.title)}`;
 }
 
+type Theme = 'light' | 'dark';
+
+function readTheme(): Theme {
+  try {
+    return window.localStorage.getItem('amvs:theme') === 'dark' ? 'dark' : 'light';
+  } catch (error) {
+    console.error('No se pudo leer el tema visual guardado:', error);
+    return 'light';
+  }
+}
+
 function RouteMetadata() {
   const { pathname } = useLocation();
-  const { repertoire: repertoireItems, siteSettings } = usePublicData();
+  const { repertoire: repertoireItems, customPages, siteSettings } = usePublicData();
 
   useEffect(() => {
     const repertoireItem = repertoireItems.find((item) => repertoirePath(item) === pathname);
+    const customPage = customPages.find((item) => `/pagina/${item.slug}` === pathname);
     const pages: Record<string, { title: string; description: string }> = {
       '/': {
         title: 'AM Virgen de la Soledad de Doña Mencía | Web oficial',
@@ -78,6 +94,18 @@ function RouteMetadata() {
         title: 'Contacto y contratación | AM Virgen de la Soledad',
         description: 'Contacta con la Agrupación Musical Virgen de la Soledad de Doña Mencía para solicitar información o contratación.',
       },
+      '/aviso-legal': {
+        title: 'Aviso legal | AM Virgen de la Soledad',
+        description: 'Información legal sobre la web de la Agrupación Musical Virgen de la Soledad de Doña Mencía.',
+      },
+      '/privacidad': {
+        title: 'Política de privacidad | AM Virgen de la Soledad',
+        description: 'Información sobre los datos personales tratados en la web de la Agrupación Musical Virgen de la Soledad.',
+      },
+      '/cookies': {
+        title: 'Cookies y almacenamiento | AM Virgen de la Soledad',
+        description: 'Información y controles de privacidad para el almacenamiento local y los reproductores externos de esta web.',
+      },
     };
     const page = repertoireItem
       ? {
@@ -85,6 +113,11 @@ function RouteMetadata() {
           description: repertoireItem.description
             || `Escucha ${repertoireItem.title}, marcha del repertorio de la Agrupación Musical Virgen de la Soledad de Doña Mencía.`,
         }
+      : customPage
+        ? {
+            title: `${customPage.title} | ${siteSettings.siglas}`,
+            description: customPage.subtitle || customPage.content.slice(0, 160),
+          }
       : pages[pathname] ?? {
           title: `${siteSettings.siglas} | ${siteSettings.name}`,
           description: `Web oficial de ${siteSettings.name}, agrupación musical de Doña Mencía.`,
@@ -118,7 +151,7 @@ function RouteMetadata() {
       document.head.appendChild(canonical);
     }
     canonical.href = canonicalUrl;
-  }, [pathname, repertoireItems, siteSettings.name, siteSettings.siglas]);
+  }, [pathname, repertoireItems, customPages, siteSettings.name, siteSettings.siglas]);
 
   return null;
 }
@@ -311,9 +344,21 @@ const navItems = [
 
 function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>(readTheme);
   const [publicData, setPublicData] = useState(initialPublicData);
   const [connectionError, setConnectionError] = useState('');
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
+  const { openCookieSettings } = useCookiePreferences();
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    try {
+      window.localStorage.setItem('amvs:theme', theme);
+    } catch (error) {
+      console.error('No se pudo guardar el tema visual:', error);
+    }
+  }, [theme]);
 
   useEffect(() => {
     let isMounted = true;
@@ -386,6 +431,24 @@ function App() {
                 {item.label}
               </NavLink>
             ))}
+            {publicData.customPages.map((page) => (
+              <NavLink
+                key={page.id}
+                to={`/pagina/${page.slug}`}
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+                onClick={() => setMobileOpen(false)}
+              >
+                {page.title}
+              </NavLink>
+            ))}
+            <button
+              type="button"
+              className="theme-toggle"
+              aria-pressed={theme === 'dark'}
+              onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? '☀ Modo claro' : '☾ Modo oscuro'}
+            </button>
           </nav>
         </div>
       </header>
@@ -403,6 +466,10 @@ function App() {
           <Route path="/componentes" element={<VisiblePage page="members"><MembersPage /></VisiblePage>} />
           <Route path="/patrocinadores" element={<VisiblePage page="sponsors"><SponsorsPage /></VisiblePage>} />
           <Route path="/contacto" element={<VisiblePage page="contact"><ContactPage /></VisiblePage>} />
+          <Route path="/aviso-legal" element={<LegalNoticePage settings={publicData.siteSettings} />} />
+          <Route path="/privacidad" element={<PrivacyPolicyPage settings={publicData.siteSettings} />} />
+          <Route path="/cookies" element={<CookiePolicyPage onOpenPreferences={openCookieSettings} />} />
+          <Route path="/pagina/:slug" element={<CustomPageRoute />} />
           <Route path="/admin" element={<AdminPage onPublished={refreshPublicData} />} />
           <Route path="/registro" element={<SignupPage />} />
           <Route path="*" element={<NotFoundPage />} />
@@ -431,6 +498,15 @@ function App() {
                   </a>
                 </li>
               ))}
+            </ul>
+          </div>
+          <div>
+            <h4>Información</h4>
+            <ul className="legal-links">
+              <li><Link to="/aviso-legal">Aviso legal</Link></li>
+              <li><Link to="/privacidad">Privacidad</Link></li>
+              <li><Link to="/cookies">Cookies</Link></li>
+              <li><button type="button" onClick={openCookieSettings}>Configurar privacidad</button></li>
             </ul>
           </div>
         </div>
@@ -593,6 +669,21 @@ function HistoryPage() {
 function VisiblePage({ page, children }: { page: keyof SiteVisibility; children: ReactNode }) {
   const { visibility } = usePublicData();
   return visibility[page] ? children : <NotFoundPage />;
+}
+
+function CustomPageRoute() {
+  const { slug } = useParams();
+  const { customPages } = usePublicData();
+  const page = customPages.find((item) => item.slug === slug);
+
+  if (!page) return <NotFoundPage />;
+
+  return (
+    <div className="container section-page">
+      <PageHeader title={page.title} subtitle={page.subtitle || 'AM Virgen de la Soledad'} />
+      <article className="custom-page-content">{page.content}</article>
+    </div>
+  );
 }
 
 function RepertoirePage() {
@@ -830,16 +921,6 @@ function ContactPage() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setIsSubmitted(true);
-    setFormData({
-      name: '',
-      entity: '',
-      email: '',
-      phone: '',
-      locality: '',
-      eventDate: '',
-      eventType: '',
-      message: '',
-    });
   };
 
   return (
@@ -897,7 +978,12 @@ function ContactPage() {
           </label>
         </div>
 
-        {isSubmitted ? <p className="success-message">Solicitud preparada correctamente. En una implementación con Supabase, esta petición quedará almacenada de forma segura en la tabla correspondiente.</p> : null}
+        {isSubmitted ? (
+          <p className="success-message" role="status">
+            Este formulario aún no envía ni guarda solicitudes. Tus datos permanecen en esta página.
+            Para contactar con la agrupación, llama al <a href={`tel:${settings.publicPhone.replace(/[^\d+]/g, '')}`}>{settings.publicPhone}</a>.
+          </p>
+        ) : null}
 
         <button type="submit" className="button primary submit-button">Enviar solicitud</button>
       </form>
@@ -1087,109 +1173,23 @@ function AdminPage({ onPublished }: { onPublished: () => void }) {
         </div>
       </div>
 
+      {['Administrador', 'Superadministrador'].includes(profile.rol) ? (
+        <AdminPageManager visibility={publicData.visibility} onPublished={onPublished} />
+      ) : (
+        <p className="admin-permission-notice">
+          La gestión de visibilidad y páginas está disponible para Administradores y Superadministradores. Tu rol actual es «{profile.rol}».
+        </p>
+      )}
       <AdminContentEditor
         userId={session.user.id}
         role={profile.rol}
         onPublished={onPublished}
       />
-      {['Administrador', 'Superadministrador'].includes(profile.rol) ? (
-        <VisibilitySettings visibility={publicData.visibility} onSaved={onPublished} />
-      ) : null}
 
       <div className="admin-actions">
         <button type="button" className="button secondary" onClick={() => { void supabase?.auth.signOut(); }}>Cerrar sesión</button>
       </div>
     </div>
-  );
-}
-
-const visibilityOptions: { key: keyof SiteVisibility; label: string }[] = [
-  { key: 'history', label: 'Historia' },
-  { key: 'repertoire', label: 'Repertorio (página completa)' },
-  { key: 'repertoireMarches', label: 'Marchas procesionales (apartado de repertorio)' },
-  { key: 'events', label: 'Actuaciones' },
-  { key: 'gallery', label: 'Galería' },
-  { key: 'members', label: 'Componentes' },
-  { key: 'sponsors', label: 'Patrocinadores' },
-  { key: 'contact', label: 'Contacto' },
-];
-
-function VisibilitySettings({
-  visibility,
-  onSaved,
-}: {
-  visibility: SiteVisibility;
-  onSaved: () => void;
-}) {
-  const [draft, setDraft] = useState(visibility);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-
-  useEffect(() => setDraft(visibility), [visibility]);
-
-  async function saveVisibility(event: FormEvent) {
-    event.preventDefault();
-    if (!supabase) {
-      setError('No se puede guardar la visibilidad porque Supabase no está configurado.');
-      return;
-    }
-
-    setIsSaving(true);
-    setError('');
-    setMessage('');
-    const settingsKeys: Record<keyof SiteVisibility, string> = {
-      history: 'visibility_history',
-      repertoire: 'visibility_repertoire',
-      repertoireMarches: 'visibility_repertoire_marches',
-      events: 'visibility_events',
-      gallery: 'visibility_gallery',
-      members: 'visibility_members',
-      sponsors: 'visibility_sponsors',
-      contact: 'visibility_contact',
-    };
-    const { error: saveError } = await supabase.from('site_settings').upsert(
-      visibilityOptions.map(({ key }) => ({
-        clave: settingsKeys[key],
-        valor: String(draft[key]),
-      })),
-      { onConflict: 'clave' },
-    );
-    if (saveError) {
-      setError(`No se pudo guardar la visibilidad: ${saveError.message}`);
-      setIsSaving(false);
-      return;
-    }
-
-    setMessage('Visibilidad guardada correctamente.');
-    onSaved();
-    setIsSaving(false);
-  }
-
-  return (
-    <section className="visibility-settings">
-      <h2>Visibilidad de páginas y apartados</h2>
-      <p>Desmarca una opción para ocultarla del menú y bloquear su acceso público.</p>
-      <form onSubmit={saveVisibility}>
-        <div className="visibility-options">
-          {visibilityOptions.map(({ key, label }) => (
-            <label key={key} className="visibility-option">
-              <input
-                type="checkbox"
-                checked={draft[key]}
-                onChange={(event) => setDraft((current) => ({ ...current, [key]: event.target.checked }))}
-              />
-              <span>{label}</span>
-            </label>
-          ))}
-        </div>
-        {error ? <p className="error-text" role="alert">{error}</p> : null}
-        {message ? <p role="status">{message}</p> : null}
-        <button type="submit" className="button primary" disabled={isSaving}>
-          {isSaving ? 'Guardando…' : 'Guardar visibilidad'}
-        </button>
-      </form>
-    </section>
   );
 }
 
@@ -1207,6 +1207,7 @@ function SignupPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   const updateField = (field: keyof typeof formData, value: string) => {
     setFormData((current) => ({ ...current, [field]: value }));
@@ -1293,6 +1294,10 @@ function SignupPage() {
             <label>
               Confirmar contraseña
               <input type="password" autoComplete="new-password" minLength={8} required value={formData.passwordConfirmation} onChange={(event) => updateField('passwordConfirmation', event.target.value)} />
+            </label>
+            <label className="privacy-toggle full-width">
+              <input type="checkbox" required checked={privacyAccepted} onChange={(event) => setPrivacyAccepted(event.target.checked)} />
+              <span>He leído la <Link to="/privacidad">Política de privacidad</Link> y solicito la creación de una cuenta.</span>
             </label>
           </div>
           {error ? <p className="error-text" role="alert">{error}</p> : null}

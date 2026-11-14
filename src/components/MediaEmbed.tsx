@@ -1,7 +1,16 @@
+import { useCookiePreferences } from './CookiePreferences';
+
 type MediaSource =
   | { kind: 'youtube' | 'tiktok' | 'vimeo' | 'soundcloud'; src: string }
   | { kind: 'video' | 'audio' | 'image'; src: string }
   | { kind: 'link'; src: string };
+
+const providerNames = {
+  youtube: 'YouTube',
+  tiktok: 'TikTok',
+  vimeo: 'Vimeo',
+  soundcloud: 'SoundCloud',
+};
 
 function getMediaSource(value: string): MediaSource {
   let url: URL;
@@ -52,6 +61,7 @@ function getMediaSource(value: string): MediaSource {
 
 export default function MediaEmbed({ url, title }: { url: string; title: string }) {
   const media = getMediaSource(url);
+  const { externalMediaAllowed, openCookieSettings } = useCookiePreferences();
   if (!media.src) return <p className="helper-text">La URL multimedia no es válida.</p>;
 
   if (media.kind === 'video') {
@@ -65,6 +75,15 @@ export default function MediaEmbed({ url, title }: { url: string; title: string 
   }
   if (media.kind === 'link') {
     return <a className="button secondary" href={media.src} target="_blank" rel="noreferrer">Abrir {title}</a>;
+  }
+
+  if (!externalMediaAllowed) {
+    return (
+      <div className="external-media-notice">
+        <p>Este reproductor pertenece a {providerNames[media.kind]}. No se cargará hasta que permitas contenido externo.</p>
+        <button type="button" className="button secondary" onClick={openCookieSettings}>Configurar privacidad</button>
+      </div>
+    );
   }
 
   return (

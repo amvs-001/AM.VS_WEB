@@ -15,6 +15,7 @@ import type {
   EventItem,
   GalleryAlbum,
   GalleryMediaItem,
+  CustomPageItem,
   MemberItem,
   NewsItem,
   RepertoireItem,
@@ -108,6 +109,17 @@ function mapRepertoire(row: Record<string, unknown>): RepertoireItem {
   };
 }
 
+function mapCustomPage(row: Record<string, unknown>): CustomPageItem {
+  return {
+    id: text(row, 'id'),
+    title: text(row, 'titulo'),
+    slug: text(row, 'slug'),
+    subtitle: text(row, 'subtitulo'),
+    content: text(row, 'contenido'),
+    visible: boolean(row, 'visible'),
+  };
+}
+
 function mapAlbum(row: Record<string, unknown>): GalleryAlbum {
   const category = text(row, 'categoria', 'category');
   const allowedCategories: GalleryAlbum['category'][] = [
@@ -180,6 +192,7 @@ export async function fetchPublicData() {
       source: 'local' as const,
       siteSettings: fallbackSettings,
       visibility: defaultSiteVisibility,
+      customPages: [],
       socialLinks,
       events: fallbackEvents,
       news: fallbackNews,
@@ -200,6 +213,7 @@ export async function fetchPublicData() {
     membersResponse,
     sponsorsResponse,
     timelineResponse,
+    customPagesResponse,
     settingsResponse,
   ] = await Promise.all([
     supabase.from('events').select('*').order('fecha', { ascending: true }),
@@ -214,6 +228,7 @@ export async function fetchPublicData() {
     supabase.from('members').select('*').eq('visible', true).order('orden', { ascending: true }),
     supabase.from('sponsors').select('*').eq('activo', true).order('orden', { ascending: true }),
     supabase.from('timeline').select('*').order('orden', { ascending: true }),
+    supabase.from('custom_pages').select('*').eq('visible', true).order('titulo', { ascending: true }),
     supabase.from('site_settings').select('clave, valor'),
   ]);
 
@@ -226,6 +241,7 @@ export async function fetchPublicData() {
     membersResponse,
     sponsorsResponse,
     timelineResponse,
+    customPagesResponse,
     settingsResponse,
   ];
   const failedResponse = responses.find((response) => response.error);
@@ -291,6 +307,7 @@ export async function fetchPublicData() {
     source: 'supabase' as const,
     siteSettings,
     visibility,
+    customPages: ((customPagesResponse.data ?? []) as Array<Record<string, unknown>>).map(mapCustomPage),
     socialLinks: publicSocialLinks,
     events: ((eventsResponse.data ?? []) as Array<Record<string, unknown>>).map(mapEvent),
     news: ((newsResponse.data ?? []) as Array<Record<string, unknown>>).map(mapNews),

@@ -72,6 +72,17 @@ create table if not exists public.content_drafts (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.custom_pages (
+  id uuid primary key default gen_random_uuid(),
+  titulo text not null,
+  slug text not null unique,
+  subtitulo text not null default '',
+  contenido text not null,
+  visible boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists idx_content_drafts_owner_updated
   on public.content_drafts (actualizado_por, updated_at desc);
 
@@ -132,7 +143,8 @@ grant execute on function public.has_superadmin_role() to authenticated;
 grant select on public.profiles to authenticated;
 grant select, insert, update, delete on public.content_drafts to authenticated;
 grant select on public.news, public.events, public.repertoire, public.gallery_albums,
-  public.gallery_items, public.members, public.sponsors, public.timeline, public.site_settings
+  public.gallery_items, public.members, public.sponsors, public.timeline, public.site_settings,
+  public.custom_pages
   to anon, authenticated;
 
 alter table public.content_drafts enable row level security;
@@ -255,6 +267,10 @@ drop policy if exists "Public read access to active sponsors" on public.sponsors
 create policy "Public read access to active sponsors"
   on public.sponsors for select to anon, authenticated using (activo = true);
 
+drop policy if exists "Public read access to visible custom pages" on public.custom_pages;
+create policy "Public read access to visible custom pages"
+  on public.custom_pages for select to anon, authenticated using (visible = true);
+
 drop policy if exists "Admins manage all content" on public.news;
 drop policy if exists "Admins manage events" on public.events;
 drop policy if exists "Editors manage allowed content" on public.repertoire;
@@ -277,7 +293,8 @@ begin
     'members',
     'sponsors',
     'timeline',
-    'site_settings'
+    'site_settings',
+    'custom_pages'
   ]
   loop
     role_function := case
