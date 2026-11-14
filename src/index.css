@@ -727,6 +727,32 @@ small {
   margin-bottom: 2rem;
 }
 
+.admin-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid rgba(12, 31, 26, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.admin-quick-links a {
+  color: var(--forest-800);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.admin-quick-links a:focus-visible,
+#admin-requests,
+#admin-pages,
+#admin-content {
+  scroll-margin-top: 1rem;
+}
+
 .summary-card {
   padding: 1.2rem;
 }
@@ -1347,6 +1373,7 @@ small {
 :root[data-theme='dark'] .admin-permission-notice,
 :root[data-theme='dark'] .editorial-panel,
 :root[data-theme='dark'] .contact-requests,
+:root[data-theme='dark'] .admin-quick-links,
 :root[data-theme='dark'] .visibility-settings,
 :root[data-theme='dark'] .news-preview,
 :root[data-theme='dark'] .media-preview,
@@ -1354,6 +1381,10 @@ small {
   background-color: #202832;
   border-color: rgba(225, 233, 243, 0.14);
   color: var(--charcoal);
+}
+
+:root[data-theme='dark'] .admin-quick-links a {
+  color: var(--gold-500);
 }
 
 :root[data-theme='dark'] .feature-card,

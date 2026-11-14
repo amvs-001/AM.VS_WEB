@@ -237,7 +237,7 @@ export default function AdminPageManager({
   }
 
   return (
-    <section className="admin-page-manager">
+    <section id="admin-pages" className="admin-page-manager">
       <div className="admin-page-manager-header">
         <div>
           <h2>Gestionar páginas</h2>

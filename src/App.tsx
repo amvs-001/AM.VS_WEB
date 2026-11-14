@@ -1263,6 +1263,17 @@ function AdminPage({ onPublished }: { onPublished: () => void }) {
         </div>
       </div>
 
+      <nav className="admin-quick-links" aria-label="Accesos rápidos del panel">
+        <strong>Ir directamente a:</strong>
+        {['Administrador', 'Superadministrador'].includes(profile.rol) ? (
+          <>
+            <a href="#admin-requests">Solicitudes de contratación</a>
+            <a href="#admin-pages">Páginas y visibilidad</a>
+          </>
+        ) : null}
+        <a href="#admin-content">Editar contenidos</a>
+      </nav>
+
       {['Administrador', 'Superadministrador'].includes(profile.rol) ? <AdminContactRequests /> : null}
       {['Administrador', 'Superadministrador'].includes(profile.rol) ? (
         <AdminPageManager visibility={publicData.visibility} onPublished={onPublished} />

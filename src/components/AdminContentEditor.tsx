@@ -16,6 +16,21 @@ const editableSections = [
 type EditableSection = (typeof editableSections)[number]['table'];
 type JsonRecord = Record<string, unknown>;
 
+const siteSettingOptions = [
+  { key: 'site_name', label: 'Nombre del sitio' },
+  { key: 'site_siglas', label: 'Siglas' },
+  { key: 'site_director', label: 'Director musical' },
+  { key: 'site_foundation_year', label: 'Año de fundación' },
+  { key: 'site_locality', label: 'Localidad' },
+  { key: 'site_phone', label: 'Teléfono público' },
+  { key: 'site_rehearsal_address', label: 'Dirección del local de ensayo' },
+  { key: 'site_values', label: 'Valores de la agrupación' },
+  { key: 'site_home_intro', label: 'Texto de inicio' },
+  { key: 'site_history', label: 'Historia de la agrupación' },
+  { key: 'site_logo_url', label: 'Escudo o logotipo' },
+  { key: 'site_social_links', label: 'Redes sociales (JSON)' },
+] as const;
+
 type DraftRecord = {
   id: string;
   seccion: string;
@@ -59,7 +74,7 @@ const emptyNews: NewsForm = {
 function defaultRecord(section: EditableSection): JsonRecord {
   switch (section) {
     case 'site_settings':
-      return { clave: 'site_home_intro', valor: '' };
+      return { clave: 'site_name', valor: '' };
     case 'timeline':
       return { anio: new Date().getFullYear().toString(), titulo: '', descripcion: '', imagen: '', orden: 0 };
     case 'events':
@@ -77,8 +92,16 @@ function defaultRecord(section: EditableSection): JsonRecord {
   }
 }
 
+function siteSettingLabel(key: string): string {
+  const option = siteSettingOptions.find((item) => item.key === key);
+  if (option) return option.label;
+  return key.replace(/^site_/, '').replace(/_/g, ' ');
+}
+
 function recordTitle(section: string, value: JsonRecord): string {
-  const title = value.titulo ?? value.clave ?? value.nombre ?? value.id;
+  const title = section === 'site_settings' && typeof value.clave === 'string'
+    ? siteSettingLabel(value.clave)
+    : value.titulo ?? value.clave ?? value.nombre ?? value.id;
   return typeof title === 'string' && title.trim() ? title : `Nuevo registro (${section})`;
 }
 
@@ -220,7 +243,10 @@ export default function AdminContentEditor({
     try {
       const { data, error: queryError } = await supabase.from(target).select('*');
       if (queryError) throw queryError;
-      setRows((data ?? []) as JsonRecord[]);
+      const sectionRows = (data ?? []) as JsonRecord[];
+      setRows(target === 'site_settings'
+        ? sectionRows.filter((row) => typeof row.clave !== 'string' || !row.clave.startsWith('visibility_'))
+        : sectionRows);
       if (target === 'gallery_items') {
         const { data: albums, error: albumsError } = await supabase
           .from('gallery_albums')
@@ -585,7 +611,7 @@ export default function AdminContentEditor({
   }
 
   return (
-    <section className="editorial-panel" aria-label="Gestión editorial">
+    <section id="admin-content" className="editorial-panel" aria-label="Gestión editorial">
       <div className="editorial-toolbar">
         <div>
           <strong>Editor de contenidos</strong>
@@ -772,13 +798,36 @@ export default function AdminContentEditor({
               {renderMediaPreview(recordJson)}
               {!recordValue ? <p className="error-text">El borrador no contiene un objeto válido.</p> : (
                 <div className="field-grid">
+                  {section === 'site_settings' ? (
+                    <label className="full-width">
+                      Dato del sitio
+                      {selectedRecordId ? (
+                        <input value={siteSettingLabel(String(recordValue.clave ?? ''))} readOnly />
+                      ) : (
+                        <select
+                          required
+                          value={String(recordValue.clave ?? '')}
+                          onChange={(event) => updateRecordFields({ clave: event.target.value, valor: '' })}
+                        >
+                          {siteSettingOptions.map((option) => (
+                            <option key={option.key} value={option.key}>{option.label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </label>
+                  ) : null}
                   {Object.entries(recordValue)
-                    .filter(([key]) => !['id', 'created_at', 'updated_at'].includes(key))
+                    .filter(([key]) => !['id', 'created_at', 'updated_at'].includes(key)
+                      && !(section === 'site_settings' && key === 'clave'))
                     .map(([key, value]) => (
                       <label key={key} className={['descripcion', 'valor', 'resumen'].includes(key) ? 'full-width' : ''}>
-                        {fieldLabel(key)}
+                        {section === 'site_settings' && key === 'valor'
+                          ? siteSettingLabel(String(recordValue.clave ?? ''))
+                          : fieldLabel(key)}
                         {typeof value === 'boolean' ? (
                           <input type="checkbox" checked={value} onChange={(event) => updateRecordField(key, event.target.checked)} />
+                        ) : section === 'site_settings' && key === 'valor' && recordValue.clave === 'site_foundation_year' ? (
+                          <input type="number" value={typeof value === 'string' ? value : ''} onChange={(event) => updateRecordField(key, event.target.value)} />
                         ) : typeof value === 'number' ? (
                           <input type="number" value={value} onChange={(event) => updateRecordField(key, Number(event.target.value))} />
                         ) : key === 'fecha' ? (
@@ -799,8 +848,23 @@ export default function AdminContentEditor({
                             <option value="image">Imagen</option>
                             <option value="video">Vídeo</option>
                           </select>
-                        ) : typeof value === 'string' && ['descripcion', 'valor', 'resumen'].includes(key) ? (
-                          <textarea rows={key === 'valor' ? 5 : 4} value={value} onChange={(event) => updateRecordField(key, event.target.value)} />
+                        ) : typeof value === 'string' && (
+                          ['descripcion', 'valor', 'resumen'].includes(key)
+                          || (section === 'site_settings' && key === 'valor'
+                            && ['site_values', 'site_home_intro', 'site_history', 'site_social_links'].includes(String(recordValue.clave)))
+                        ) ? (
+                          <>
+                            <textarea
+                              rows={key === 'valor' ? 5 : 4}
+                              value={value}
+                              onChange={(event) => updateRecordField(key, event.target.value)}
+                            />
+                            {section === 'site_settings' && recordValue.clave === 'site_values'
+                              ? <span className="helper-text">Separa cada valor con punto y coma.</span>
+                              : section === 'site_settings' && recordValue.clave === 'site_social_links'
+                                ? <span className="helper-text">Usa una lista JSON de redes sociales.</span>
+                                : null}
+                          </>
                         ) : (
                           <input
                             value={typeof value === 'string' ? value : value === null ? '' : JSON.stringify(value)}

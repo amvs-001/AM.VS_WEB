@@ -134,7 +134,7 @@ export default function AdminContactRequests() {
   }
 
   return (
-    <section className="contact-requests">
+    <section id="admin-requests" className="contact-requests">
       <div className="contact-requests-heading">
         <div>
           <h2>Solicitudes de contratación</h2>
