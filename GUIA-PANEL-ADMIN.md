@@ -70,6 +70,17 @@ Si prefieres Vercel, importa `amvs-001/AM.VS_WEB` y selecciona `main`; usa **Bui
 
 ## 3. Preparar permisos y almacenamiento
 
+### Proyecto Supabase nuevo o restaurado
+
+En **Supabase → SQL Editor**, confirma primero que tienes seleccionado el proyecto nuevo y ejecuta los archivos en este orden:
+
+1. `supabase/schema.sql` para crear las tablas.
+2. `supabase/admin_panel_setup.sql` para permisos, políticas y almacenamiento.
+3. `supabase/seed.sql` para datos iniciales. Este script ya se puede volver a ejecutar sin duplicar filas ni sobrescribir los ajustes existentes.
+4. `supabase/repertoire_missing_marches.sql` para completar las 58 marchas solicitadas. Sólo inserta títulos que aún no estén; no modifica ni elimina registros existentes y se puede repetir.
+
+Después de cada archivo, comprueba en **Table Editor** que haya filas en `site_settings`, `events`, `timeline` y `repertoire`. Si la web usa GitHub Pages, cambiar `.env` sólo afecta a las compilaciones locales: en GitHub → **Settings → Secrets and variables → Actions** actualiza `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` con los datos públicos del proyecto nuevo y vuelve a ejecutar **Deploy to GitHub Pages**. El sitio publicado no utilizará la base nueva hasta que se complete ese despliegue. No pongas la clave `service_role` en ninguno de esos campos.
+
 El panel necesita una tabla privada de borradores, la columna para programar noticias y el bucket de imágenes/vídeos. En el proyecto Supabase que usa la web:
 
 1. Abre **SQL Editor → New query**.

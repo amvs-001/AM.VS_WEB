@@ -34,9 +34,13 @@ create table if not exists news (
   categoria text not null default 'General',
   estado text not null default 'borrador' check (estado in ('borrador', 'publicada')),
   fecha_publicacion date,
+  programada_para timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.news
+  add column if not exists programada_para timestamptz;
 
 create table if not exists repertoire (
   id uuid primary key default gen_random_uuid(),
