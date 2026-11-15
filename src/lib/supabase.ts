@@ -186,6 +186,27 @@ function mapTimeline(row: Record<string, unknown>): TimelineItem {
   };
 }
 
+async function fetchNews(client: SupabaseClient) {
+  const response = await client.from('news')
+    .select('*')
+    .eq('estado', 'publicada')
+    .or(`programada_para.is.null,programada_para.lte.${new Date().toISOString()}`)
+    .order('fecha_publicacion', { ascending: false });
+
+  if (response.error?.code !== '42703' || !response.error.message.includes('programada_para')) {
+    return response;
+  }
+
+  console.error(
+    'Falta news.programada_para en Supabase. Se cargarán las noticias publicadas sin filtro de programación. ' +
+      'Ejecuta supabase/schema.sql y supabase/admin_panel_setup.sql para restaurar la programación.'
+  );
+  return client.from('news')
+    .select('*')
+    .eq('estado', 'publicada')
+    .order('fecha_publicacion', { ascending: false });
+}
+
 export async function fetchPublicData() {
   if (!supabase) {
     return {
@@ -217,11 +238,7 @@ export async function fetchPublicData() {
     settingsResponse,
   ] = await Promise.all([
     supabase.from('events').select('*').order('fecha', { ascending: true }),
-    supabase.from('news')
-      .select('*')
-      .eq('estado', 'publicada')
-      .or(`programada_para.is.null,programada_para.lte.${new Date().toISOString()}`)
-      .order('fecha_publicacion', { ascending: false }),
+    fetchNews(supabase),
     supabase.from('repertoire').select('*').order('titulo', { ascending: true }),
     supabase.from('gallery_albums').select('*').order('fecha', { ascending: false }),
     supabase.from('gallery_items').select('*').order('orden', { ascending: true }),
